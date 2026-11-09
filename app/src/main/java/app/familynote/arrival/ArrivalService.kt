@@ -30,7 +30,11 @@ class ArrivalService : Service() {
         app.arrivalMonitor.start()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Each start is a chance to reconnect if the vehicle service was not ready before.
+        (application as FamilyNoteApp).vehicle.start()
+        return START_STICKY
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 

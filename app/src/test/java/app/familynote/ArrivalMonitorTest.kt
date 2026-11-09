@@ -68,10 +68,17 @@ class ArrivalMonitorTest {
     }
 
     @Test
+    fun leavingParkStopsReadingAloud() = runTest(UnconfinedTestDispatcher()) {
+        val r = Rig(emptyList(), visible = true, backgroundScope)
+        r.car.setDriveState(DriveState.UNKNOWN)
+        assertEquals(1, r.voice.stopped)
+    }
+
+    @Test
     fun tripLineFormats() {
         assertNull(ArrivalMonitor.tripLine(TripSummary(0.2f, 3)))
-        assertEquals("오늘 3.5km, 12분 운전했어요", ArrivalMonitor.tripLine(TripSummary(3.5f, 12)))
-        assertEquals("오늘 84km, 1시간 30분 운전했어요", ArrivalMonitor.tripLine(TripSummary(84.2f, 90)))
-        assertEquals("오늘 3.5km 운전했어요", ArrivalMonitor.tripLine(TripSummary(3.5f, null)))
+        assertEquals("이번에 3.5km, 12분 운전했어요", ArrivalMonitor.tripLine(TripSummary(3.5f, 12)))
+        assertEquals("이번에 84km, 1시간 30분 운전했어요", ArrivalMonitor.tripLine(TripSummary(84.2f, 90)))
+        assertEquals("이번에 3.5km 운전했어요", ArrivalMonitor.tripLine(TripSummary(3.5f, null)))
     }
 }

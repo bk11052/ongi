@@ -32,7 +32,8 @@ interface ArrivalNotifier {
  */
 class ArrivalMonitor(
     private val vehicle: VehicleGateway,
-    private val notes: () -> List<Note>,
+    /** Current notes, read fresh (from the database) each time it is needed. */
+    private val notes: suspend () -> List<Note>,
     private val settings: FamilySettings,
     private val voice: Voice,
     private val notifier: ArrivalNotifier,
@@ -51,6 +52,10 @@ class ArrivalMonitor(
         job = scope.launch {
             var previous = vehicle.driveState.value
             vehicle.driveState.collect { now ->
+                if (now != DriveState.PARKED) {
+                    // Whatever happens, nothing keeps reading aloud once the car leaves P.
+                    if (previous == DriveState.PARKED) voice.stopSpeaking()
+                }
                 if (now == DriveState.DRIVING) {
                     if (previous == DriveState.PARKED) onDepart()
                     hasDriven = true
@@ -68,11 +73,11 @@ class ArrivalMonitor(
         job = null
     }
 
-    private fun waitingForDriver() = notes().filter { !it.seen && settings.isForDriver(it) }
+    private suspend fun waitingForDriver() =
+        runCatching { notes() }.getOrDefault(emptyList()).filter { !it.seen && settings.isForDriver(it) }
 
-    private fun onDepart() {
+    private suspend fun onDepart() {
         notifier.clear()
-        voice.stopSpeaking()
         val waiting = waitingForDriver()
         if (waiting.isEmpty()) return
         val senders = waiting.map { it.fromMember }.distinct()
@@ -96,14 +101,14 @@ class ArrivalMonitor(
     }
 
     companion object {
-        /** "오늘 12.3km, 25분 운전했어요" — or null when the trip is too short to mention. */
+        /** "이번에 12km, 25분 운전했어요" — or null when the trip is too short to mention. */
         fun tripLine(trip: TripSummary?): String? {
             if (trip == null || trip.distanceKm < 0.5f) return null
             val km = if (trip.distanceKm < 10f) "%.1f".format(trip.distanceKm) else trip.distanceKm.toInt().toString()
             val time = trip.minutes?.takeIf { it > 0 }?.let { m ->
                 if (m >= 60) ", ${m / 60}시간 ${m % 60}분" else ", ${m}분"
             } ?: ""
-            return "오늘 ${km}km$time 운전했어요"
+            return "이번에 ${km}km$time 운전했어요"
         }
     }
 }

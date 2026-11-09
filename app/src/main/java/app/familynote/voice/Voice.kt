@@ -31,8 +31,9 @@ interface Voice {
 
 class FakeVoice : Voice {
     val spoken = mutableListOf<String>()
+    var stopped = 0
     override fun speak(text: String) { spoken += text }
-    override fun stopSpeaking() = Unit
+    override fun stopSpeaking() { stopped++ }
     override fun listen(onText: (String, Boolean) -> Unit, onError: (String) -> Unit) = onError("unavailable")
     override fun stopListening() = Unit
 }

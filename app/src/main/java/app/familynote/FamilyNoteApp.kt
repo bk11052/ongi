@@ -23,6 +23,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 
 /** Holds the app-wide singletons (database, repository, vehicle, voice, arrival monitor). */
 class FamilyNoteApp : Application() {
@@ -66,6 +67,6 @@ class FamilyNoteApp : Application() {
     @Volatile var appVisible = false
 
     val arrivalMonitor: ArrivalMonitor by lazy {
-        ArrivalMonitor(vehicle, { notes.value }, settings, voice, notifier, { appVisible }, appScope)
+        ArrivalMonitor(vehicle, { repository.notes.first() }, settings, voice, notifier, { appVisible }, appScope)
     }
 }

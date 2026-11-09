@@ -14,6 +14,10 @@ import app.familynote.arrival.ArrivalService
 import app.familynote.ui.FamilyNoteRoot
 import app.familynote.ui.MainViewModel
 import app.familynote.ui.theme.FamilyNoteTheme
+import app.familynote.vehicle.DriveState
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -29,13 +33,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         app.vehicle.start()
+        app.arrivalMonitor.start()
         // The service keeps watching the gear after this screen closes.
         ArrivalService.start(this)
-        if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        // Ask for the notification permission only while parked (a system dialog is touchable).
+        lifecycleScope.launch {
+            vm.drive.first { it == DriveState.PARKED }
+            if (Build.VERSION.SDK_INT >= 33 &&
+                ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
         handle(intent)
         setContent {
@@ -54,13 +63,15 @@ class MainActivity : ComponentActivity() {
     private fun handle(intent: Intent?) {
         if (intent?.getBooleanExtra(EXTRA_OPEN_GALLERY, false) == true) {
             intent.removeExtra(EXTRA_OPEN_GALLERY)
-            vm.openGallery(auto = true)
+            // On a cold start notes and the gear state are still loading; the ViewModel waits.
+            vm.openGalleryWhenReady()
         }
     }
 
     override fun onStart() {
         super.onStart()
         app.appVisible = true
+        app.vehicle.start() // retries if an earlier connection attempt gave up
         app.notifier.clear()
         vm.onForegrounded()
     }

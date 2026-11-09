@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed interface Screen {
     data object Home : Screen
@@ -124,9 +126,10 @@ class MainViewModel(
             return
         }
         // Arrived in P after driving: greet with the gallery if something new is waiting.
+        // When the screen is not visible, the arrival notification handles it instead.
         if (hasDriven) {
             hasDriven = false
-            if (waitingForDriver().isNotEmpty()) _screen.value = newGallery(auto = true)
+            if (visible && waitingForDriver().isNotEmpty()) _screen.value = newGallery(auto = true)
         }
     }
 
@@ -142,6 +145,21 @@ class MainViewModel(
         val newIds = fresh.map { it.id }.toSet()
         val order = fresh.map { it.id } + all.filter { it.id !in newIds }.map { it.id }
         return Screen.Gallery(auto, order, newIds, startId).also { lastGallery = it }
+    }
+
+    /**
+     * Opened from the arrival notification. On a cold start the notes and the gear state may
+     * still be loading, so wait (briefly) until notes are loaded and the car is in P.
+     */
+    fun openGalleryWhenReady() {
+        viewModelScope.launch {
+            repo.notes.first()
+            val parked = withTimeoutOrNull(5_000) { drive.first { it == DriveState.PARKED } }
+            if (parked != null) {
+                notes.first { it.isNotEmpty() || repo.isEmpty() }
+                openGallery(auto = true)
+            }
+        }
     }
 
     fun openGallery(startId: String? = null, auto: Boolean = false) {

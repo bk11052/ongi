@@ -19,7 +19,7 @@ class DebugSeedReceiver : BroadcastReceiver() {
         val pending = goAsync()
         app.appScope.launch {
             try {
-                app.repository.saveText(text, from, to)
+                runCatching { app.repository.saveText(text, from, to) }
             } finally {
                 pending.finish()
             }

@@ -112,7 +112,7 @@ fun HomeScreen(
                                 Modifier.fillMaxWidth().aspectRatio(4f / 3f).rotate(tilt),
                                 textSizeScale = 0.9f,
                             )
-                            if (!note.seen) Box(Modifier.align(Alignment.TopEnd).padding(6.dp)) { NewDot() }
+                            if (!note.seen && FamilySettings.isFor(note, driver)) Box(Modifier.align(Alignment.TopEnd).padding(6.dp)) { NewDot() }
                         }
                         Text(
                             "${note.fromMember} → ${note.toMember} · ${note.dateLabel()}",

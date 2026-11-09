@@ -94,8 +94,10 @@ class PleosVehicleGateway(
             // Subscribe first so a gear change during the initial read is not missed.
             var registered = false
             var gear: VehicleGear? = null
-            // The service connection is set up asynchronously; retry briefly.
-            for (attempt in 1..10) {
+            // The service connection is set up asynchronously, and at boot the vehicle service
+            // may come up late: keep retrying with backoff (about 2 minutes in total).
+            var wait = 500L
+            for (attempt in 1..30) {
                 if (!registered) {
                     registered = runCatching { vehicle.getGear().registerGearSelection(gearListener) }
                         .onFailure { Log.w(TAG, "registerGearSelection failed (attempt $attempt)", it) }
@@ -103,11 +105,16 @@ class PleosVehicleGateway(
                 }
                 gear = call<VehicleGear> { ok, fail -> vehicle.getGear().getCurrentGearSelectionState(ok, fail) }
                 if (registered && gear != null) break
-                delay(500)
+                delay(wait)
+                wait = (wait * 3 / 2).coerceAtMost(8_000L)
             }
             if (!registered) {
-                Log.w(TAG, "gear updates unavailable; staying UNKNOWN")
+                Log.w(TAG, "gear updates unavailable; staying UNKNOWN until the next start()")
                 _drive.value = DriveState.UNKNOWN
+                // Allow a later start() (e.g. when the screen comes back) to try again.
+                started = false
+                runCatching { vehicle.release() }
+                return@launch
             } else if (gear != null && !listenerReported) {
                 _drive.value = gear.toDriveState()
             }
