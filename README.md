@@ -2,6 +2,17 @@
 
 **차가 가족의 우체통이 됩니다.** 가족이 차 화면에 남긴 그림과 쪽지가, 퇴근길에 주차하는 순간 실내 조명과 함께 천천히 펼쳐지는 Pleos Connect 차량용 앱입니다.
 
+## 화면
+| 쪽지함 | 운전 중 | 도착하면 열리는 갤러리 |
+|---|---|---|
+| ![쪽지함](docs/screenshots/01_home.png) | ![운전 중](docs/screenshots/02_driving.png) | ![갤러리](docs/screenshots/03_arrive_gallery.png) |
+
+| 멈춤 · 쉼표 모드 | 그림 남기기 |
+|---|---|
+| ![멈춤](docs/screenshots/05_paused_rest_mode.png) | ![그리기](docs/screenshots/06_draw.png) |
+
+*Pleos Connect Emulator v2.1.0에서 캡처. 화면 가장자리 빛과 실내 앰비언트 조명이 그림 색을 따라 바뀐다.*
+
 ## 주요 기능
 | 기능 | 설명 | 사용 SDK |
 |---|---|---|
@@ -44,7 +55,7 @@ adb shell am start -n app.familynote/.MainActivity
 - Pleos 차량 서비스가 없는 일반 에뮬레이터에서는 debug 빌드만 주차 상태로 시작한다(UI 확인용). release 빌드는 기어 정보가 없으면 잠긴 화면을 유지한다.
 
 ## APK
-- 위치: `apk/` 폴더 (release 빌드)
+- 위치: `apk/` 폴더의 `팀명_다녀왔어_release.apk` (서명된 release 빌드)
 
 ## 구조
 ```

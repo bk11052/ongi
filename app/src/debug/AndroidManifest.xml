@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: lets demo/test scripts add a text note over adb (Korean text cannot be
+     typed with `adb shell input text`). Not present in release builds. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver
+            android:name=".DebugSeedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="app.familynote.debug.ADD_TEXT" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
