@@ -75,7 +75,7 @@ fun HomeScreen(
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 220.dp),
+                columns = GridCells.Adaptive(minSize = 300.dp),
                 horizontalArrangement = Arrangement.spacedBy(28.dp),
                 verticalArrangement = Arrangement.spacedBy(28.dp),
             ) {

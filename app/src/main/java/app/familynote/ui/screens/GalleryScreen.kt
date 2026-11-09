@@ -160,15 +160,16 @@ private fun SlowZoomPaper(note: Note, loadBitmap: suspend (String, Int) -> Bitma
     } else {
         4f / 3f
     }
-    Box(Modifier.fillMaxSize().padding(vertical = 64.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().padding(top = 56.dp, bottom = 120.dp), contentAlignment = Alignment.Center) {
         PaperNote(
             note,
             bmp,
             Modifier
-                .fillMaxHeight(0.92f)
+                .fillMaxHeight()
                 .aspectRatio(ratio)
                 .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
                 .shadow(24.dp),
+            textSizeScale = 1.8f,
         )
     }
 }

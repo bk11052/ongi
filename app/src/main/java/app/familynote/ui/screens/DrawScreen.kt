@@ -5,8 +5,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -103,29 +103,28 @@ fun DrawScreen(
                     recommit()
                 }
                 .pointerInput(Unit) {
-                    detectTapGestures { p ->
-                        if (size.width == 0 || size.height == 0) return@detectTapGestures
+                    // Raw handling: the stroke starts exactly at touch-down, so quick dots and
+                    // short marks (common in children's drawings) are never lost to touch slop.
+                    awaitEachGesture {
+                        val down = awaitFirstDown()
+                        if (size.width == 0 || size.height == 0) return@awaitEachGesture
                         val s = Stroke(color, width, eraser)
-                        s.add(p.x / size.width, p.y / size.height)
+                        s.add(down.position.x / size.width, down.position.y / size.height)
+                        down.consume()
+                        current = s
                         strokes += s
+                        tick++
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+                            s.add(change.position.x / size.width, change.position.y / size.height)
+                            change.consume()
+                            tick++
+                        }
+                        current = null
                         recommit()
                     }
-                }
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { p ->
-                            val s = Stroke(color, width, eraser)
-                            s.add(p.x / size.width, p.y / size.height)
-                            current = s
-                            strokes += s
-                        },
-                        onDrag = { change, _ ->
-                            current?.add(change.position.x / size.width, change.position.y / size.height)
-                            tick++
-                        },
-                        onDragEnd = { current = null; recommit() },
-                        onDragCancel = { current = null; recommit() },
-                    )
                 },
         ) {
             Canvas(Modifier.fillMaxSize()) {

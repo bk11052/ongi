@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,7 +25,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -47,12 +49,12 @@ fun Note.dateLabel(): String = dateFormat.format(Date(createdAt))
 
 /**
  * Soft light along the screen edges in the current ambient color, so the cabin light
- * change is also visible on screen (and in recordings).
+ * change is also visible on screen (and in recordings). Drawn behind the content so it
+ * never tints the notes themselves.
  */
-fun Modifier.ambientGlow(color: Color, strength: Float = 0.55f): Modifier = drawWithContent {
-    drawContent()
-    if (color.alpha == 0f) return@drawWithContent
-    val edge = size.minDimension * 0.18f
+fun Modifier.ambientGlow(color: Color, strength: Float = 0.32f): Modifier = drawBehind {
+    if (color.alpha == 0f) return@drawBehind
+    val edge = size.minDimension * 0.22f
     val c = color.copy(alpha = strength)
     val clear = Color.Transparent
     drawRect(Brush.verticalGradient(listOf(c, clear), startY = 0f, endY = edge))
@@ -68,6 +70,7 @@ fun animatedGlowColor(argb: Int?): Color {
     return c
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChipRow(
     label: String,
@@ -77,7 +80,10 @@ fun ChipRow(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, style = Type.Small)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             for (o in options) {
                 val on = o == selected
                 Box(
