@@ -42,6 +42,8 @@ private const val MAX_LEN = 200
 @Composable
 fun WriteScreen(
     replyTo: Note?,
+    /** Who is replying: the current driver (they are the one sitting in front of the screen). */
+    driver: String,
     onListen: (onText: (String, Boolean) -> Unit, onError: (String) -> Unit) -> Unit,
     onStopListening: () -> Unit,
     onCancel: () -> Unit,
@@ -50,7 +52,7 @@ fun WriteScreen(
 ) {
     var text by remember { mutableStateOf("") }
     // A reply goes back to whoever wrote the original note.
-    var from by remember { mutableStateOf(replyTo?.toMember ?: "아빠") }
+    var from by remember { mutableStateOf(if (replyTo != null) driver else "아빠") }
     var to by remember { mutableStateOf(replyTo?.fromMember ?: "딸") }
     var saving by remember { mutableStateOf(false) }
     var listening by remember { mutableStateOf(false) }
@@ -95,7 +97,7 @@ fun WriteScreen(
             if (text.isEmpty()) {
                 Text(
                     if (replyTo != null) "${replyTo.fromMember}에게 답장을 써 주세요" else "마음을 적어 주세요",
-                    style = Type.NoteBody.copy(color = Palette.PaperShade),
+                    style = Type.NoteBody.copy(color = Palette.PaperHint),
                 )
             }
             BasicTextField(

@@ -264,4 +264,27 @@ class MainViewModelTest {
         advanceUntilIdle()
         assertEquals(false, vm.notes.value.first().seen)
     }
+
+    @Test
+    fun interruptedDrawingResumesOnArrival() = runTest(dispatcher) {
+        val (vm, car) = vm(listOf(note("a")), DriveState.PARKED)
+        advanceUntilIdle()
+        vm.keepDraft(app.familynote.ui.DrawDraft(emptyList(), "딸", "아빠"))
+        car.setDriveState(DriveState.DRIVING); advanceUntilIdle()
+        car.setDriveState(DriveState.PARKED); advanceUntilIdle()
+        assertEquals(Screen.Draw, vm.screen.value)
+    }
+
+    @Test
+    fun autoGallerySkipsNotesForOthers() = runTest(dispatcher) {
+        val mine = note("mine")
+        val moms = note("moms").copy(toMember = "엄마", seen = true)
+        val (vm, car) = vm(listOf(mine, moms), DriveState.DRIVING)
+        advanceUntilIdle()
+        car.setDriveState(DriveState.PARKED); advanceUntilIdle()
+        assertEquals(listOf("mine"), (vm.screen.value as Screen.Gallery).order)
+        vm.closeGallery()
+        vm.openGallery()
+        assertEquals(setOf("mine", "moms"), (vm.screen.value as Screen.Gallery).order.toSet())
+    }
 }

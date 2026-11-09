@@ -120,7 +120,7 @@ fun GalleryScreen(
                 style = Type.Label,
                 modifier = Modifier.alpha(if (paused) 1f else 0.75f),
             )
-            if (!paused) Text("화면을 누르면 멈추고 읽어 드려요", style = Type.Small, modifier = Modifier.alpha(0.6f))
+            if (!paused) Text("화면을 누르면 멈추고 읽어 드려요", style = Type.Small, modifier = Modifier.alpha(0.85f))
         }
 
         if (greeting != null && !paused) {

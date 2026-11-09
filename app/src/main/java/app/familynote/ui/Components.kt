@@ -81,7 +81,7 @@ fun ChipRow(
     onSelect: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, style = Type.Small)
+        if (label.isNotEmpty()) Text(label, style = Type.Small)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -90,10 +90,11 @@ fun ChipRow(
                 val on = o == selected
                 Box(
                     Modifier
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(28.dp))
                         .background(if (on) Palette.Amber else Palette.NightRaised)
+                        .border(2.dp, if (on) Palette.Amber else Palette.Dim.copy(alpha = 0.5f), RoundedCornerShape(28.dp))
                         .clickable { onSelect(o) }
-                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
                 ) {
                     Text(o, style = Type.Label.copy(color = if (on) Palette.Night else Palette.Moon))
                 }
@@ -181,6 +182,8 @@ fun ConfirmDialog(
     dismissText: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    /** Optional picture of what the decision is about (e.g. the note to delete). */
+    preview: (@Composable () -> Unit)? = null,
 ) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -190,8 +193,9 @@ fun ConfirmDialog(
                 .padding(40.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Text(title, style = Type.Label.copy(fontSize = Type.Label.fontSize * 1.2f))
-            Text(body, style = Type.Small)
+            Text(title, style = Type.Label.copy(fontSize = Type.Label.fontSize * 1.3f))
+            preview?.invoke()
+            Text(body, style = Type.Label.copy(color = Palette.Dim))
             Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
                 // The safe choice is the prominent one.
                 SoftButton(dismissText, primary = true, onClick = onDismiss)

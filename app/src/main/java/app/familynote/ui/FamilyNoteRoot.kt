@@ -103,6 +103,7 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                 )
                 is Screen.Write -> WriteScreen(
                     replyTo = target.replyTo,
+                    driver = driver,
                     onListen = vm::listen,
                     onStopListening = vm::stopListening,
                     onCancel = vm::back,
@@ -135,8 +136,8 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                 it,
                 style = Type.Label.copy(color = Palette.Night),
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 32.dp)
+                    .align(Alignment.TopCenter)
+                    .padding(top = 24.dp)
                     .clip(RoundedCornerShape(28.dp))
                     .background(Palette.Amber)
                     .padding(horizontal = 32.dp, vertical = 16.dp),

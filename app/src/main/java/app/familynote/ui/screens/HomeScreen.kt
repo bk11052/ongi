@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -71,7 +72,7 @@ fun HomeScreen(
                     style = Type.Small,
                 )
                 if (notes.isNotEmpty()) {
-                    Text("쪽지를 길게 누르면 지울 수 있어요", style = Type.Small.copy(fontSize = Type.Small.fontSize * 0.85f))
+                    Text("쪽지를 길게 누르면 지울 수 있어요", style = Type.Small)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -140,12 +141,17 @@ fun HomeScreen(
                     onDriverChange(it)
                     choosingDriver = false
                 }
+                SoftButton("닫기", onClick = { choosingDriver = false })
             }
         }
     }
 
     pendingDelete?.let { note ->
         ConfirmDialog(
+            preview = {
+                val bmp = rememberNoteBitmap(note.imagePath, 480, loadBitmap)
+                PaperNote(note, bmp, Modifier.width(360.dp).aspectRatio(4f / 3f), textSizeScale = 0.8f)
+            },
             title = "이 쪽지를 지울까요?",
             body = "${note.fromMember} → ${note.toMember} · ${note.dateLabel()}\n지운 쪽지는 되돌릴 수 없어요.",
             confirmText = "지우기",

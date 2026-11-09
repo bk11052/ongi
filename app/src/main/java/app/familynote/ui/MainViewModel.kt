@@ -129,7 +129,13 @@ class MainViewModel(
         // When the screen is not visible, the arrival notification handles it instead.
         if (hasDriven) {
             hasDriven = false
-            if (visible && waitingForDriver().isNotEmpty()) _screen.value = newGallery(auto = true)
+            when {
+                !visible -> Unit
+                // A drawing was interrupted by driving (e.g. a short move at a rest stop):
+                // let the child carry on rather than starting the driver's slideshow.
+                _draft.value != null -> _screen.value = Screen.Draw
+                waitingForDriver().isNotEmpty() -> _screen.value = newGallery(auto = true)
+            }
         }
     }
 
@@ -143,7 +149,9 @@ class MainViewModel(
         val all = notes.value
         val fresh = waitingForDriver().sortedBy { it.createdAt }
         val newIds = fresh.map { it.id }.toSet()
-        val order = fresh.map { it.id } + all.filter { it.id !in newIds }.map { it.id }
+        // On arrival, revisit only the driver's own notes; notes for others stay theirs.
+        val rest = all.filter { it.id !in newIds && (!auto || settings.isForDriver(it)) }
+        val order = fresh.map { it.id } + rest.map { it.id }
         return Screen.Gallery(auto, order, newIds, startId).also { lastGallery = it }
     }
 
