@@ -17,7 +17,10 @@
 | 기능 | 설명 | 사용 SDK |
 |---|---|---|
 | 그림·글 쪽지 | 정차 중 차 화면에 크레파스로 그림을 그리거나 글을 남김. 보내는 사람과 받는 사람 선택 | — |
-| 주차하면 열리는 쪽지 갤러리 | 주행 후 P단에 들어서면 쪽지가 한 장씩 천천히 페이드인되고 6초마다 다음 장으로 넘어감 | Vehicle `Gear` |
+| 도착 감지 | 다른 앱(내비 등)이 앞에 있어도 백그라운드 서비스가 기어를 지켜보다가, 주행 후 P단이면 "다녀왔어요" 알림 → 누르면 쪽지가 열림 | Vehicle `Gear` |
+| 천천히 펼쳐지는 쪽지 | 운전자에게 온 새 쪽지가 한 장씩 페이드인되고 6초마다 다음 장으로 넘어감 | — |
+| 오늘의 운전 한 줄 | 도착 시 "오늘 32km, 48분 운전했어요" | Vehicle `Odometer` |
+| 운전하는 사람 설정 | 주 운전자(또는 "우리 가족")에게 온 쪽지만 도착 때 펼침 | — |
 | 그림 색을 따라가는 실내 조명 | 그림의 대표색을 뽑아 앰비언트 라이트를 서서히 그 색으로 바꿈. 갤러리를 닫거나 출발하면 원래 조명으로 돌려놓음 | Vehicle `Light` |
 | 쉼표 모드 | 공조를 조금 따뜻하고 조용하게 바꾸고, 끝나면 원래 설정으로 복원 | Vehicle `HVAC` |
 | 읽어 주기 / 출발 안내 | 갤러리에서 쪽지를 탭하면 소리 내어 읽어 줌. 출발할 때 안 읽은 쪽지가 있으면 음성으로만 알려 줌 | TextToSpeech |
@@ -38,6 +41,7 @@
 ### 빌드
 ```bash
 ./gradlew :app:assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:assembleRelease      # 서명된 release (keystore.properties 필요, 저장소에 없음)
 ./gradlew :app:testDebugUnitTest    # 단위 테스트
 ```
 Pleos SDK는 `settings.gradle.kts`에 등록된 Pleos Maven 저장소(`nexus-playground.pleos.ai`)에서 받는다.
@@ -49,8 +53,9 @@ adb shell am start -n app.familynote/.MainActivity
 ```
 
 ### 테스트 환경과 필요한 설정
-- 확인 환경: Pleos Connect Emulator v2.1.0(API 34, x86_64)
-- 기어 상태(P/D)와 실내 조명은 Pleos Connect Virtual Console에서 바꾸며 확인한다.
+- 확인 환경: Pleos Connect Emulator v2.1.0(API 34) — Apple Silicon(arm64-v8a) 이미지
+- 기어 상태(P/D)와 실내 조명·공조는 Pleos Connect Virtual Console(`adb forward tcp:8088 tcp:8088` → http://127.0.0.1:8088)에서 바꾸며 확인한다.
+- 처음 실행하면 알림 권한을 묻는다(도착 알림에 필요).
 - 처음 "말로 쓰기"를 누르면 마이크 권한을 묻는다. 에뮬레이터에서는 Extended Controls > Microphone에서 호스트 오디오 입력을 켠다.
 - Pleos 차량 서비스가 없는 일반 에뮬레이터에서는 debug 빌드만 주차 상태로 시작한다(UI 확인용). release 빌드는 기어 정보가 없으면 잠긴 화면을 유지한다.
 
