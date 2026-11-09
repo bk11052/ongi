@@ -155,8 +155,10 @@ class PleosVehicleGateway(
         for ((area, value) in saved) {
             val (color, switch) = value
             if (color != null) {
+                // The car reports the color without alpha (e.g. 0x00FFFFFF) but only accepts
+                // opaque values, so force alpha to 0xFF when writing it back.
                 call<Int> { ok, fail ->
-                    vehicle.getLight().setAmbientLightBrightnessColor(area, color, { _, v -> ok(v) }, fail)
+                    vehicle.getLight().setAmbientLightBrightnessColor(area, color or OPAQUE, { _, v -> ok(v) }, fail)
                 }
             }
             if (switch != null) {
