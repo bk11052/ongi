@@ -103,13 +103,16 @@ class PleosVehicleGateway(
                         .onFailure { Log.w(TAG, "registerGearSelection failed (attempt $attempt)", it) }
                         .isSuccess
                 }
+                // Registering succeeds even before the service is connected (the SDK queues it),
+                // so only an actual answer proves the connection works.
+                if (listenerReported) break
                 gear = call<VehicleGear> { ok, fail -> vehicle.getGear().getCurrentGearSelectionState(ok, fail) }
                 if (registered && gear != null) break
                 delay(wait)
                 wait = (wait * 3 / 2).coerceAtMost(8_000L)
             }
-            if (!registered) {
-                Log.w(TAG, "gear updates unavailable; staying UNKNOWN until the next start()")
+            if (!registered || (gear == null && !listenerReported)) {
+                Log.w(TAG, "vehicle service not answering; staying UNKNOWN until the next start()")
                 _drive.value = DriveState.UNKNOWN
                 // Allow a later start() (e.g. when the screen comes back) to try again.
                 started = false

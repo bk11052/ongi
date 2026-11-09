@@ -18,6 +18,9 @@ import app.familynote.vehicle.DriveState
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 
 class MainActivity : ComponentActivity() {
 
@@ -36,17 +39,28 @@ class MainActivity : ComponentActivity() {
         app.arrivalMonitor.start()
         // The service keeps watching the gear after this screen closes.
         ArrivalService.start(this)
-        // Ask for the notification permission only while parked (a system dialog is touchable).
-        lifecycleScope.launch {
-            vm.drive.first { it == DriveState.PARKED }
-            if (Build.VERSION.SDK_INT >= 33 &&
-                ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        // Ask for the notification permission once per launch, only while this screen is visible
+        // and the car is parked (a system dialog is touchable).
+        if (savedInstanceState == null) {
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    vm.drive.first { it == DriveState.PARKED }
+                    if (Build.VERSION.SDK_INT >= 33 &&
+                        ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) !=
+                        PackageManager.PERMISSION_GRANTED
+                    ) {
+                        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    cancel() // once is enough
+                }
             }
         }
-        handle(intent)
+        // Reopened from recents with the original notification intent: do not replay it.
+        if (savedInstanceState == null &&
+            (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0
+        ) {
+            handle(intent)
+        }
         setContent {
             FamilyNoteTheme {
                 FamilyNoteRoot(vm)

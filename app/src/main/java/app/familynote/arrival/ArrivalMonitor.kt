@@ -82,6 +82,8 @@ class ArrivalMonitor(
         if (waiting.isEmpty()) return
         val senders = waiting.map { it.fromMember }.distinct()
         val who = if (senders.size == 1) Korean.subject(senders.first()) else "가족이"
+        // The note lookup above suspends; skip if the car is already back in P.
+        if (vehicle.driveState.value != DriveState.DRIVING) return
         voice.speak("$who 남긴 쪽지가 ${waiting.size}장 있어요. 도착하면 보여드릴게요.")
     }
 
