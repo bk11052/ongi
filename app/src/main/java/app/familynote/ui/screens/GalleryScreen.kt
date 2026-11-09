@@ -60,7 +60,12 @@ fun GalleryScreen(
     onClose: () -> Unit,
 ) {
     // Freeze the order when the gallery opens; "seen" updates must not reshuffle the show.
-    val order = remember { notes.map { it.id } }
+    // New notes come first (oldest first, so they read in order), then older ones to revisit.
+    val newIds = remember { notes.filter { !it.seen }.map { it.id }.toSet() }
+    val order = remember {
+        notes.filter { it.id in newIds }.sortedBy { it.createdAt }.map { it.id } +
+            notes.filter { it.id !in newIds }.map { it.id }
+    }
     val byId = notes.associateBy { it.id }
     val shown = order.mapNotNull { byId[it] }
     if (shown.isEmpty()) {
@@ -107,6 +112,11 @@ fun GalleryScreen(
             Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            Text(
+                if (note.id in newIds) "새 쪽지" else "다시 보는 쪽지",
+                style = Type.Small,
+                modifier = Modifier.alpha(if (paused) 1f else 0.7f),
+            )
             Text(
                 "From. ${note.fromMember}  ·  ${note.dateLabel()}",
                 style = Type.Caption,
