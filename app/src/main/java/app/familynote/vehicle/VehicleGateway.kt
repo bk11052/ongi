@@ -38,13 +38,20 @@ interface VehicleGateway {
     /** Sets the cabin ambient light color. Returns false if the car rejected it or it is unsupported. */
     suspend fun setAmbientColor(argb: Int): Boolean
 
-    /** Puts the ambient light back to what the car had before the app changed it. */
-    suspend fun restoreAmbient()
+    /**
+     * Puts the ambient light back to what the car had before the app changed it.
+     * Returns false if some write failed; the saved original is then kept for a retry.
+     */
+    suspend fun restoreAmbient(): Boolean
 
     /** Warm, quiet cabin: warmer, quieter climate. Returns what to restore. */
     suspend fun enterRest(): RestSnapshot
 
-    suspend fun exitRest(snapshot: RestSnapshot)
+    /** Restores climate; false if some write failed (the snapshot is kept for a retry). */
+    suspend fun exitRest(snapshot: RestSnapshot): Boolean
+
+    /** Undoes cabin changes left over from a previous run (crash, failed restore). */
+    suspend fun recoverPendingCabin()
 }
 
 /** In-memory gateway for unit tests and for devices without the Pleos vehicle service. */
@@ -74,17 +81,26 @@ class FakeVehicleGateway(initial: DriveState = DriveState.PARKED) : VehicleGatew
         return true
     }
 
-    override suspend fun restoreAmbient() {
+    /** When true, restore calls report failure (to test retry paths). */
+    var failRestores = false
+
+    override suspend fun restoreAmbient(): Boolean {
+        if (failRestores) return false
         ambientRestored++
         _ambient.value = null
+        return true
     }
+
+    override suspend fun recoverPendingCabin() = Unit
 
     override suspend fun enterRest(): RestSnapshot {
         restCalls++
         return RestSnapshot(null, null)
     }
 
-    override suspend fun exitRest(snapshot: RestSnapshot) {
+    override suspend fun exitRest(snapshot: RestSnapshot): Boolean {
+        if (failRestores) return false
         restCalls--
+        return true
     }
 }

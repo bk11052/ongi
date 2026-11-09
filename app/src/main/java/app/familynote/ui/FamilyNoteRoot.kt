@@ -79,7 +79,7 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                     loadBitmap = vm::loadBitmap,
                     onDraw = { vm.open(Screen.Draw) },
                     onWrite = { vm.open(Screen.Write()) },
-                    onGallery = { startId -> vm.open(Screen.Gallery(auto = false, startId = startId)) },
+                    onGallery = vm::openGallery,
                     onDelete = vm::delete,
                 )
                 Screen.Draw -> DrawScreen(
@@ -97,6 +97,8 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                 )
                 is Screen.Gallery -> GalleryScreen(
                     notes = notes,
+                    order = target.order,
+                    newIds = target.newIds,
                     startId = target.startId,
                     resting = resting,
                     loadBitmap = vm::loadBitmap,

@@ -14,9 +14,8 @@ import app.familynote.vehicle.DriveState
 import app.familynote.vehicle.RestSnapshot
 import app.familynote.vehicle.VehicleGateway
 import app.familynote.voice.Voice
-import kotlinx.coroutines.CoroutineScope
+import app.familynote.vehicle.Cabin
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,9 +23,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 sealed interface Screen {
     data object Home : Screen
@@ -37,20 +33,24 @@ sealed interface Screen {
 
     /**
      * [auto] is true when the gallery opened by itself because the car was just parked.
-     * [startId] is the note to begin with (null = newest).
+     * [order] is frozen when the gallery opens (new notes first) so "seen" updates and
+     * replies written meanwhile never reshuffle it; [newIds] are the notes that were new then.
+     * [startId] is the note to begin with (null = the first in [order]).
      */
-    data class Gallery(val auto: Boolean, val startId: String? = null) : Screen
+    data class Gallery(
+        val auto: Boolean,
+        val order: List<String>,
+        val newIds: Set<String>,
+        val startId: String? = null,
+    ) : Screen
 }
 
 class MainViewModel(
     private val repo: NoteRepository,
     private val vehicle: VehicleGateway,
     private val voice: Voice,
-    /**
-     * Outlives this ViewModel. Cabin changes (rest mode, ambient restore) run here so that
-     * closing the screen can never leave them half done.
-     */
-    private val appScope: CoroutineScope,
+    /** App-wide serializer for cabin changes; outlives this ViewModel. */
+    private val cabin: Cabin,
 ) : ViewModel() {
 
     val notes: StateFlow<List<Note>> =
@@ -73,13 +73,15 @@ class MainViewModel(
     private var messageJob: Job? = null
     private var restSnapshot: RestSnapshot? = null
 
-    /** Serializes all cabin changes (rest on/off, ambient restore). */
-    private val cabinLock = Mutex()
+    /** The gallery to return to after replying from it. */
+    private var lastGallery: Screen.Gallery? = null
 
     /** Set once the car has been driven; the next arrival in P opens the gallery. */
     private var hasDriven = false
 
     init {
+        // Undo anything a previous run left changed (crash, failed restore).
+        cabin.run { runCatching { vehicle.recoverPendingCabin() } }
         viewModelScope.launch {
             var previous = vehicle.driveState.value
             vehicle.driveState.collect { now ->
@@ -95,8 +97,10 @@ class MainViewModel(
             // Not parked (or not known): drop editing screens and stop anything cabin-related.
             // Unsaved strokes are discarded on purpose; safety comes first.
             _screen.value = Screen.Home
+            lastGallery = null
             colorJob?.cancel()
             voice.stopListening()
+            voice.stopSpeaking()
             leaveCabinAsFound()
             // Setting off: a short spoken heads-up instead of anything to look at.
             if (previous == DriveState.PARKED && now == DriveState.DRIVING) announceWaitingNotes()
@@ -105,8 +109,22 @@ class MainViewModel(
         // Arrived in P after driving: greet with the gallery if there is anything to show.
         if (hasDriven) {
             hasDriven = false
-            if (notes.value.isNotEmpty()) _screen.value = Screen.Gallery(auto = true)
+            if (notes.value.isNotEmpty()) _screen.value = newGallery(auto = true)
         }
+    }
+
+    /** Freezes the show order now: new notes first (oldest first), then older ones. */
+    private fun newGallery(auto: Boolean, startId: String? = null): Screen.Gallery {
+        val all = notes.value
+        val fresh = all.filter { !it.seen }.sortedBy { it.createdAt }
+        val newIds = fresh.map { it.id }.toSet()
+        val order = fresh.map { it.id } + all.filter { it.id !in newIds }.map { it.id }
+        return Screen.Gallery(auto, order, newIds, startId).also { lastGallery = it }
+    }
+
+    fun openGallery(startId: String? = null) {
+        if (drive.value != DriveState.PARKED || notes.value.isEmpty()) return
+        _screen.value = newGallery(auto = false, startId = startId)
     }
 
     fun open(screen: Screen) {
@@ -118,16 +136,18 @@ class MainViewModel(
         when (val s = _screen.value) {
             is Screen.Gallery -> closeGallery()
             is Screen.Write -> _screen.value =
-                if (s.replyTo != null) Screen.Gallery(auto = false, startId = s.replyTo.id) else Screen.Home
+                lastGallery?.takeIf { s.replyTo != null }?.copy(startId = s.replyTo?.id) ?: Screen.Home
             else -> _screen.value = Screen.Home
         }
     }
 
     fun closeGallery() {
+        // Leave the gallery first so any in-flight fade step sees it closed.
+        _screen.value = Screen.Home
+        lastGallery = null
         voice.stopSpeaking()
         colorJob?.cancel()
         leaveCabinAsFound()
-        _screen.value = Screen.Home
     }
 
     private fun announceWaitingNotes() {
@@ -160,14 +180,34 @@ class MainViewModel(
         fadeAmbientTo(note.accentColor)
     }
 
+    /** True between onStart and onStop of the activity. */
+    @Volatile private var visible = false
+
+    private fun galleryShowing() =
+        visible && _screen.value is Screen.Gallery && drive.value == DriveState.PARKED
+
+    fun onForegrounded() {
+        visible = true
+    }
+
     /** Changes the cabin light in small steps so it drifts rather than jumps. */
     private fun fadeAmbientTo(target: Int) {
-        if (drive.value != DriveState.PARKED) return
+        if (!galleryShowing()) return
         colorJob?.cancel()
         colorJob = viewModelScope.launch {
             val from = vehicle.ambientColor.value ?: ColorMath.WARM_DEFAULT
             for (c in ColorMath.steps(from, target, AMBIENT_STEPS)) {
-                vehicle.setAmbientColor(c)
+                // Same lock as the restore, and re-checked each step: a late step after the
+                // gallery closed would otherwise change the light again after it was restored.
+                val applied = cabin.locked {
+                    if (galleryShowing()) {
+                        vehicle.setAmbientColor(c)
+                        true
+                    } else {
+                        false
+                    }
+                }
+                if (!applied) return@launch
                 delay(AMBIENT_FADE_MS / AMBIENT_STEPS)
             }
         }
@@ -175,39 +215,43 @@ class MainViewModel(
 
     fun setResting(on: Boolean) {
         if (on && drive.value != DriveState.PARKED) return
-        cabin {
-            if (on == _resting.value) return@cabin
+        cabin.run {
+            if (on == _resting.value) return@run
             if (on) {
-                if (drive.value != DriveState.PARKED) return@cabin
+                if (drive.value != DriveState.PARKED) return@run
                 _resting.value = true
                 restSnapshot = runCatching { vehicle.enterRest() }
                     .onFailure { Log.w(TAG, "enterRest failed", it) }
                     .getOrNull()
             } else {
                 _resting.value = false
-                restSnapshot?.let { s -> runCatching { vehicle.exitRest(s) } }
-                restSnapshot = null
+                endRest()
             }
         }
+    }
+
+    /** Must run inside [Cabin.run]. Keeps the snapshot if the restore failed (retried later). */
+    private suspend fun endRest() {
+        val s = restSnapshot ?: return
+        val ok = runCatching { vehicle.exitRest(s) }.getOrDefault(false)
+        if (ok) restSnapshot = null
     }
 
     /** Ends rest mode and gives the cabin its own ambient light back. */
     private fun leaveCabinAsFound() {
-        cabin {
-            if (_resting.value) {
-                _resting.value = false
-                restSnapshot?.let { s -> runCatching { vehicle.exitRest(s) } }
-                restSnapshot = null
-            }
+        cabin.run {
+            _resting.value = false
+            endRest()
             runCatching { vehicle.restoreAmbient() }
         }
     }
 
-    /** Runs a cabin change to completion, one at a time, even if this ViewModel is cleared. */
-    private fun cabin(block: suspend () -> Unit) {
-        appScope.launch {
-            withContext(NonCancellable) { cabinLock.withLock { block() } }
-        }
+    /** The app left the screen (Home button, another app) while parked: undo cabin changes. */
+    fun onBackgrounded() {
+        visible = false
+        voice.stopListening()
+        voice.stopSpeaking()
+        if (_screen.value is Screen.Gallery) closeGallery() else leaveCabinAsFound()
     }
 
     fun saveDrawing(bitmap: Bitmap, from: String, to: String, onDone: (Boolean) -> Unit) {
@@ -257,11 +301,11 @@ class MainViewModel(
         private val repo: NoteRepository,
         private val vehicle: VehicleGateway,
         private val voice: Voice,
-        private val appScope: CoroutineScope,
+        private val cabin: Cabin,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            MainViewModel(repo, vehicle, voice, appScope) as T
+            MainViewModel(repo, vehicle, voice, cabin) as T
     }
 
     companion object {

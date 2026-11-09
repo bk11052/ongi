@@ -50,6 +50,9 @@ private const val ENTRY_FADE_MS = 1600
 @Composable
 fun GalleryScreen(
     notes: List<Note>,
+    /** Frozen show order and the ids that were new when the gallery opened (from the ViewModel). */
+    order: List<String>,
+    newIds: Set<String>,
     startId: String?,
     resting: Boolean,
     loadBitmap: suspend (String, Int) -> Bitmap?,
@@ -59,13 +62,6 @@ fun GalleryScreen(
     onReply: (Note) -> Unit,
     onClose: () -> Unit,
 ) {
-    // Freeze the order when the gallery opens; "seen" updates must not reshuffle the show.
-    // New notes come first (oldest first, so they read in order), then older ones to revisit.
-    val newIds = remember { notes.filter { !it.seen }.map { it.id }.toSet() }
-    val order = remember {
-        notes.filter { it.id in newIds }.sortedBy { it.createdAt }.map { it.id } +
-            notes.filter { it.id !in newIds }.map { it.id }
-    }
     val byId = notes.associateBy { it.id }
     val shown = order.mapNotNull { byId[it] }
     if (shown.isEmpty()) {
@@ -73,7 +69,7 @@ fun GalleryScreen(
         return
     }
 
-    var index by remember { mutableIntStateOf(order.indexOf(startId).coerceAtLeast(0)) }
+    var index by remember { mutableIntStateOf(shown.indexOfFirst { it.id == startId }.coerceAtLeast(0)) }
     var paused by remember { mutableStateOf(false) }
     val safeIndex = index % shown.size
     val note = shown[safeIndex]

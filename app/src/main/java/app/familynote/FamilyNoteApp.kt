@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.room.Room
 import app.familynote.data.AppDatabase
 import app.familynote.data.NoteRepository
+import app.familynote.vehicle.Cabin
 import app.familynote.vehicle.DriveState
 import app.familynote.vehicle.FakeVehicleGateway
 import app.familynote.vehicle.PleosVehicleGateway
@@ -37,4 +38,10 @@ class FamilyNoteApp : Application() {
     }
 
     val voice: Voice by lazy { PleosVoice(this) }
+
+    /** Serializes cabin changes app-wide (see [Cabin]). */
+    val cabin = Cabin(appScope)
+
+    /** Activities currently created; the vehicle connection is released only when none are left. */
+    var liveActivities = 0
 }

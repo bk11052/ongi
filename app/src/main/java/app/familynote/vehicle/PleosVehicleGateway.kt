@@ -10,6 +10,7 @@ import ai.pleos.playground.vehicle.constant.unit.TemperatureUnit
 import ai.pleos.playground.vehicle.listener.GearSelectionListener
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -17,9 +18,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 
@@ -28,8 +31,12 @@ import kotlin.coroutines.resume
  * wrapped into a suspend function with a timeout; failures are logged and reported as
  * null/false instead of crashing the app.
  *
- * Safety: the drive state fails closed. Anything unexpected (no reading, listener failure)
- * becomes UNKNOWN, which the UI treats as "not parked".
+ * Safety: the drive state fails closed. Anything unexpected (no reading, listener failure,
+ * a fresh start) is UNKNOWN, which the UI treats as "not parked".
+ *
+ * Cabin settings the app changes (ambient light, climate) are saved to disk before the first
+ * change and cleared only after they were written back successfully, so a crash or a failed
+ * restore is retried on the next start ([recoverPendingCabin]).
  */
 class PleosVehicleGateway(
     context: Context,
@@ -38,6 +45,8 @@ class PleosVehicleGateway(
 
     private val vehicle = Vehicle(context.applicationContext)
     private val driver = SeatArea(SeatValue.ROW_1_LEFT)
+    private val prefs: SharedPreferences =
+        context.applicationContext.getSharedPreferences("cabin_restore", Context.MODE_PRIVATE)
 
     private val _drive = MutableStateFlow(DriveState.UNKNOWN)
     private val _ambient = MutableStateFlow<Int?>(null)
@@ -49,21 +58,26 @@ class PleosVehicleGateway(
     /** Seat areas whose ambient color can be set; filled by the capability check. */
     @Volatile private var ambientAreas: List<SeatArea> = emptyList()
 
-    /** The cabin's own ambient color/switch per area before the app first changed it. */
-    private var savedAmbient: Map<SeatArea, Pair<Int?, LightSwitch?>>? = null
-
     /** SDK calls whose callback has not arrived yet; release() waits for zero. */
     private val inFlight = AtomicInteger(0)
     private var startJob: Job? = null
     private var started = false
 
+    /** Set by the listener; the initial read must not overwrite a newer listener value. */
+    @Volatile private var listenerReported = false
+
+    /** Completes once the service answered (or gave up), so recovery can wait for it. */
+    private val ready = MutableStateFlow(false)
+
     private val gearListener = object : GearSelectionListener {
         override fun onSelected(gear: VehicleGear?) {
+            listenerReported = true
             _drive.value = gear?.toDriveState() ?: DriveState.UNKNOWN
         }
 
         override fun onFailed(e: Exception) {
             Log.w(TAG, "gear listener failed", e)
+            listenerReported = true
             _drive.value = DriveState.UNKNOWN
         }
     }
@@ -71,6 +85,10 @@ class PleosVehicleGateway(
     override fun start() {
         if (started) return
         started = true
+        // Never trust a value from a previous session: the car may have moved since.
+        _drive.value = DriveState.UNKNOWN
+        listenerReported = false
+        ready.value = false
         vehicle.initialize()
         startJob = scope.launch {
             // Subscribe first so a gear change during the initial read is not missed.
@@ -90,11 +108,11 @@ class PleosVehicleGateway(
             if (!registered) {
                 Log.w(TAG, "gear updates unavailable; staying UNKNOWN")
                 _drive.value = DriveState.UNKNOWN
-            } else if (gear != null && _drive.value == DriveState.UNKNOWN) {
-                // Only fill in if the listener has not already reported something newer.
+            } else if (gear != null && !listenerReported) {
                 _drive.value = gear.toDriveState()
             }
             detectAmbientAreas()
+            ready.value = true
         }
     }
 
@@ -102,8 +120,9 @@ class PleosVehicleGateway(
         if (!started) return
         started = false
         startJob?.cancel()
+        _drive.value = DriveState.UNKNOWN
         runCatching { vehicle.getGear().unregisterGearSelection(gearListener) }
-        // release() must not run while callbacks are pending (e.g. a cabin restore).
+        // release() must not run while callbacks are pending.
         scope.launch {
             val deadline = System.currentTimeMillis() + RELEASE_WAIT_MS
             while (inFlight.get() > 0 && System.currentTimeMillis() < deadline) delay(100)
@@ -120,18 +139,21 @@ class PleosVehicleGateway(
         Log.i(TAG, "ambient color areas: ${areas.size}")
     }
 
+    // ---- Ambient light ----------------------------------------------------------------
+
     override suspend fun setAmbientColor(argb: Int): Boolean {
         val color = argb or OPAQUE
         _ambient.value = color
         val areas = ambientAreas
         if (areas.isEmpty()) return false
-        if (savedAmbient == null) {
-            // Remember the cabin's own setting once, so it can be put back later.
-            savedAmbient = areas.associateWith { area ->
+        if (!prefs.contains(KEY_AMBIENT)) {
+            // Remember the cabin's own setting once (on disk), so it can always be put back.
+            val saved = areas.map { area ->
                 val c = call<Int> { ok, fail -> vehicle.getLight().getAmbientLightBrightnessColor(area, ok, fail) }
                 val s = call<LightSwitch> { ok, fail -> vehicle.getLight().getAmbientLightSwitch(area, ok, fail) }
-                c to s
+                SavedAmbient(area.values.map { it.name }, c, s?.name)
             }
+            prefs.edit().putString(KEY_AMBIENT, SavedAmbient.encode(saved)).commit()
             for (area in areas) {
                 call<LightSwitch> { ok, fail ->
                     vehicle.getLight().setAmbientLightSwitch(area, LightSwitch.ON, { _, v -> ok(v) }, fail)
@@ -148,31 +170,50 @@ class PleosVehicleGateway(
         return allOk
     }
 
-    override suspend fun restoreAmbient() {
-        val saved = savedAmbient ?: return
-        savedAmbient = null
-        _ambient.value = null
-        for ((area, value) in saved) {
-            val (color, switch) = value
-            if (color != null) {
+    override suspend fun restoreAmbient(): Boolean {
+        val encoded = prefs.getString(KEY_AMBIENT, null) ?: run {
+            _ambient.value = null
+            return true
+        }
+        var allOk = true
+        for (saved in SavedAmbient.decode(encoded)) {
+            val area = saved.toArea() ?: continue
+            if (saved.color != null) {
                 // The car reports the color without alpha (e.g. 0x00FFFFFF) but only accepts
                 // opaque values, so force alpha to 0xFF when writing it back.
-                call<Int> { ok, fail ->
-                    vehicle.getLight().setAmbientLightBrightnessColor(area, color or OPAQUE, { _, v -> ok(v) }, fail)
+                val r = call<Int> { ok, fail ->
+                    vehicle.getLight().setAmbientLightBrightnessColor(area, saved.color or OPAQUE, { _, v -> ok(v) }, fail)
                 }
+                if (r == null) allOk = false
             }
+            val switch = saved.switch?.let { runCatching { LightSwitch.valueOf(it) }.getOrNull() }
             if (switch != null) {
-                call<LightSwitch> { ok, fail ->
+                val r = call<LightSwitch> { ok, fail ->
                     vehicle.getLight().setAmbientLightSwitch(area, switch, { _, v -> ok(v) }, fail)
                 }
+                if (r == null) allOk = false
             }
         }
+        if (allOk) {
+            prefs.edit().remove(KEY_AMBIENT).commit()
+            _ambient.value = null
+        } else {
+            Log.w(TAG, "ambient restore incomplete; will retry")
+        }
+        return allOk
     }
+
+    // ---- Rest mode (climate) ----------------------------------------------------------
 
     override suspend fun enterRest(): RestSnapshot {
         val hvac = vehicle.getHVAC()
         val temp = call<Float> { ok, fail -> hvac.getHvacTemperature(driver, TemperatureUnit.CELSIUS, ok, fail) }
         val fan = call<Int> { ok, fail -> hvac.getHvacFanSpeed(driver, ok, fail) }
+        val snapshot = RestSnapshot(temperatureC = temp, fanSpeed = fan)
+        // Save before changing anything, so a crash in between can still be undone.
+        prefs.edit()
+            .putString(KEY_REST, "${temp ?: ""}|${fan ?: ""}")
+            .commit()
 
         // Change a setting only if we could read it first, so it can always be restored.
         if (temp != null) {
@@ -191,18 +232,36 @@ class PleosVehicleGateway(
                 call<Int> { ok, fail -> hvac.setHvacFanSpeed(driver, quiet, { _, v -> ok(v) }, fail) }
             }
         }
-        return RestSnapshot(temperatureC = temp, fanSpeed = fan)
+        return snapshot
     }
 
-    override suspend fun exitRest(snapshot: RestSnapshot) {
+    override suspend fun exitRest(snapshot: RestSnapshot): Boolean {
         val hvac = vehicle.getHVAC()
+        var allOk = true
         snapshot.temperatureC?.let { t ->
-            call<Float> { ok, fail -> hvac.setHvacTemperature(driver, t, TemperatureUnit.CELSIUS, { _, v -> ok(v) }, fail) }
+            val r = call<Float> { ok, fail -> hvac.setHvacTemperature(driver, t, TemperatureUnit.CELSIUS, { _, v -> ok(v) }, fail) }
+            if (r == null) allOk = false
         }
         snapshot.fanSpeed?.let { f ->
-            call<Int> { ok, fail -> hvac.setHvacFanSpeed(driver, f, { _, v -> ok(v) }, fail) }
+            val r = call<Int> { ok, fail -> hvac.setHvacFanSpeed(driver, f, { _, v -> ok(v) }, fail) }
+            if (r == null) allOk = false
         }
+        if (allOk) prefs.edit().remove(KEY_REST).commit() else Log.w(TAG, "climate restore incomplete; will retry")
+        return allOk
     }
+
+    override suspend fun recoverPendingCabin() {
+        if (!prefs.contains(KEY_REST) && !prefs.contains(KEY_AMBIENT)) return
+        // Wait (briefly) for the service connection before writing anything.
+        withTimeoutOrNull(RECOVER_WAIT_MS) { ready.first { it } }
+        prefs.getString(KEY_REST, null)?.let { s ->
+            val (t, f) = s.split('|').let { it.getOrNull(0) to it.getOrNull(1) }
+            exitRest(RestSnapshot(t?.toFloatOrNull(), f?.toIntOrNull()))
+        }
+        restoreAmbient()
+    }
+
+    // ---- Plumbing ---------------------------------------------------------------------
 
     /**
      * Runs one SDK call and waits for its onComplete/onFailed callback.
@@ -211,7 +270,7 @@ class PleosVehicleGateway(
     private suspend fun <T> call(block: (ok: (T?) -> Unit, fail: (Exception) -> Unit) -> Unit): T? {
         inFlight.incrementAndGet()
         // Decrement exactly once: on the callback, or on timeout/throw if no callback ever comes.
-        val settled = java.util.concurrent.atomic.AtomicBoolean(false)
+        val settled = AtomicBoolean(false)
         fun settle() { if (settled.compareAndSet(false, true)) inFlight.decrementAndGet() }
         return try {
             withTimeoutOrNull(CALL_TIMEOUT_MS) {
@@ -238,12 +297,34 @@ class PleosVehicleGateway(
         }
     }
 
+    /** One area's original ambient setting, in a form that survives process death. */
+    private data class SavedAmbient(val seats: List<String>, val color: Int?, val switch: String?) {
+        fun toArea(): SeatArea? = runCatching {
+            SeatArea(*seats.map { SeatValue.valueOf(it) }.toTypedArray())
+        }.getOrNull()
+
+        companion object {
+            // Format per area: SEAT+SEAT;color;switch — areas separated by '/'.
+            fun encode(list: List<SavedAmbient>) =
+                list.joinToString("/") { "${it.seats.joinToString("+")};${it.color ?: ""};${it.switch ?: ""}" }
+
+            fun decode(s: String): List<SavedAmbient> = s.split('/').filter { it.isNotBlank() }.mapNotNull { part ->
+                val f = part.split(';')
+                if (f.size != 3) return@mapNotNull null
+                SavedAmbient(f[0].split('+').filter { it.isNotBlank() }, f[1].toIntOrNull(), f[2].ifBlank { null })
+            }
+        }
+    }
+
     companion object {
         private const val TAG = "PleosVehicle"
         private const val CALL_TIMEOUT_MS = 1500L
         private const val RELEASE_WAIT_MS = 10_000L
+        private const val RECOVER_WAIT_MS = 8_000L
         private const val OPAQUE = 0xFF000000.toInt()
         private const val REST_TEMPERATURE_C = 24f
+        private const val KEY_AMBIENT = "ambient"
+        private const val KEY_REST = "rest"
 
         private const val VEHICLE_SERVICE_ACTION = "ai.pleos.playground.vehicle.VEHICLE_START"
 

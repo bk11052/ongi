@@ -189,11 +189,11 @@ fun DrawScreen(
                 SoftButton(if (eraser) "지우개 ✓" else "지우개", onClick = { eraser = !eraser })
             }
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SoftButton("되돌리기", enabled = strokes.isNotEmpty(), onClick = {
+                SoftButton("되돌리기", enabled = strokes.isNotEmpty() && current == null, onClick = {
                     strokes.removeLastOrNull()
                     recommit()
                 })
-                SoftButton("모두 지우기", enabled = strokes.isNotEmpty(), onClick = {
+                SoftButton("모두 지우기", enabled = strokes.isNotEmpty() && current == null, onClick = {
                     strokes.clear()
                     recommit()
                 })

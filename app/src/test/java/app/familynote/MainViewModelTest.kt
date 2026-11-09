@@ -7,6 +7,7 @@ import app.familynote.data.NoteRepository
 import app.familynote.ui.MainViewModel
 import app.familynote.ui.Screen
 import app.familynote.util.ColorMath
+import app.familynote.vehicle.Cabin
 import app.familynote.vehicle.DriveState
 import app.familynote.vehicle.FakeVehicleGateway
 import app.familynote.voice.FakeVoice
@@ -59,7 +60,8 @@ class MainViewModelTest {
     private fun TestScope.vm(notes: List<Note>, drive: DriveState): Pair<MainViewModel, FakeVehicleGateway> {
         val car = FakeVehicleGateway(drive)
         val repo = NoteRepository(FakeDao(notes), File("build/tmp-test"), dispatcher)
-        val vm = MainViewModel(repo, car, FakeVoice(), this)
+        val vm = MainViewModel(repo, car, FakeVoice(), Cabin(this))
+        vm.onForegrounded()
         return vm to car
     }
 
@@ -69,7 +71,7 @@ class MainViewModelTest {
         advanceUntilIdle()
         car.setDriveState(DriveState.PARKED)
         advanceUntilIdle()
-        assertEquals(Screen.Gallery(auto = true), vm.screen.value)
+        assertTrue((vm.screen.value as? Screen.Gallery)?.auto == true)
     }
 
     @Test
@@ -108,6 +110,7 @@ class MainViewModelTest {
         val blue = 0xFF1E88E5.toInt()
         val (vm, car) = vm(listOf(note("a", blue)), DriveState.PARKED)
         advanceUntilIdle()
+        vm.openGallery()
         vm.onNoteShown(vm.notes.value.first())
         advanceUntilIdle()
         assertEquals(blue, car.appliedColors.last())
@@ -132,7 +135,7 @@ class MainViewModelTest {
     fun closingGalleryRestoresCabinLight() = runTest(dispatcher) {
         val (vm, car) = vm(listOf(note("a")), DriveState.PARKED)
         advanceUntilIdle()
-        vm.open(Screen.Gallery(auto = false))
+        vm.openGallery()
         vm.onNoteShown(vm.notes.value.first())
         advanceUntilIdle()
         vm.closeGallery()
@@ -146,6 +149,7 @@ class MainViewModelTest {
     fun drivingRestoresCabinLight() = runTest(dispatcher) {
         val (vm, car) = vm(listOf(note("a")), DriveState.PARKED)
         advanceUntilIdle()
+        vm.openGallery()
         vm.onNoteShown(vm.notes.value.first())
         advanceUntilIdle()
         val before = car.ambientRestored
@@ -164,7 +168,7 @@ class MainViewModelTest {
         advanceUntilIdle()
         car.setDriveState(DriveState.PARKED)
         advanceUntilIdle()
-        assertEquals(Screen.Gallery(auto = true), vm.screen.value)
+        assertTrue((vm.screen.value as? Screen.Gallery)?.auto == true)
     }
 
     @Test
@@ -172,9 +176,14 @@ class MainViewModelTest {
         val n = note("a")
         val (vm, _) = vm(listOf(n), DriveState.PARKED)
         advanceUntilIdle()
+        vm.openGallery()
+        val before = vm.screen.value as Screen.Gallery
         vm.open(Screen.Write(replyTo = n))
         vm.back()
-        assertEquals(Screen.Gallery(auto = false, startId = "a"), vm.screen.value)
+        val after = vm.screen.value as Screen.Gallery
+        assertEquals("a", after.startId)
+        // Same frozen order: a reply written meanwhile is not slipped into the show.
+        assertEquals(before.order, after.order)
     }
 
     @Test
@@ -182,10 +191,62 @@ class MainViewModelTest {
         val voice = FakeVoice()
         val car = FakeVehicleGateway(DriveState.PARKED)
         val repo = NoteRepository(FakeDao(listOf(note("a"))), File("build/tmp-test"), dispatcher)
-        MainViewModel(repo, car, voice, this)
+        MainViewModel(repo, car, voice, Cabin(this))
         advanceUntilIdle()
         car.setDriveState(DriveState.DRIVING)
         advanceUntilIdle()
         assertEquals(listOf("딸이 남긴 쪽지가 1장 있어요. 도착하면 보여드릴게요."), voice.spoken)
+    }
+
+    @Test
+    fun noFadeAfterGalleryClosed() = runTest(dispatcher) {
+        val (vm, car) = vm(listOf(note("a")), DriveState.PARKED)
+        advanceUntilIdle()
+        vm.openGallery()
+        vm.closeGallery()
+        val applied = car.appliedColors.size
+        vm.onNoteShown(vm.notes.value.first())
+        advanceUntilIdle()
+        assertEquals(applied, car.appliedColors.size)
+    }
+
+    @Test
+    fun noFadeWhileAppInBackground() = runTest(dispatcher) {
+        val (vm, car) = vm(listOf(note("a")), DriveState.PARKED)
+        advanceUntilIdle()
+        vm.openGallery()
+        vm.onBackgrounded()
+        vm.onNoteShown(vm.notes.value.first())
+        advanceUntilIdle()
+        assertTrue(car.appliedColors.isEmpty())
+        assertEquals(Screen.Home, vm.screen.value)
+    }
+
+    @Test
+    fun failedRestKeepsSnapshotForRetry() = runTest(dispatcher) {
+        val (vm, car) = vm(listOf(note("a")), DriveState.PARKED)
+        advanceUntilIdle()
+        vm.setResting(true)
+        advanceUntilIdle()
+        car.failRestores = true
+        vm.setResting(false)
+        advanceUntilIdle()
+        assertEquals(1, car.restCalls)
+        car.failRestores = false
+        car.setDriveState(DriveState.DRIVING)
+        advanceUntilIdle()
+        assertEquals(0, car.restCalls)
+    }
+
+    @Test
+    fun galleryShowsNewNotesFirst() = runTest(dispatcher) {
+        val old = note("old").copy(seen = true, createdAt = 5L)
+        val fresh = note("new").copy(createdAt = 1L)
+        val (vm, _) = vm(listOf(old, fresh), DriveState.PARKED)
+        advanceUntilIdle()
+        vm.openGallery()
+        val g = vm.screen.value as Screen.Gallery
+        assertEquals(listOf("new", "old"), g.order)
+        assertEquals(setOf("new"), g.newIds)
     }
 }
