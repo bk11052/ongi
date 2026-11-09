@@ -17,7 +17,7 @@ import app.familynote.ui.theme.Type
  * [unseen] is how many notes are waiting, so the driver knows without interacting.
  */
 @Composable
-fun DrivingScreen(unseen: Int, connecting: Boolean) {
+fun DrivingScreen(unseen: Int, connecting: Boolean, hasDraft: Boolean = false) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (connecting) {
@@ -25,10 +25,11 @@ fun DrivingScreen(unseen: Int, connecting: Boolean) {
             } else {
                 Text("운전에 집중하세요", style = Type.Title)
                 Text(
-                    if (unseen > 0) "새 쪽지 ${unseen}장은 주차하면 보여드릴게요" else "주차하면 다시 만나요",
+                    if (unseen > 0) "새 쪽지 ${unseen}장은 도착하면 보여드릴게요" else "도착하면 다시 만나요",
                     style = Type.Caption,
                     textAlign = TextAlign.Center,
                 )
+                if (hasDraft) Text("그리던 그림은 그대로 남겨 둘게요", style = Type.Small, textAlign = TextAlign.Center)
             }
         }
     }

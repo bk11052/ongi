@@ -39,7 +39,12 @@ import app.familynote.ui.PaperNote
 import app.familynote.ui.SoftButton
 import app.familynote.ui.dateLabel
 import app.familynote.ui.rememberNoteBitmap
+import app.familynote.ui.theme.Palette
+import app.familynote.util.Korean
 import app.familynote.ui.theme.Type
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import kotlinx.coroutines.delay
 
 /** How long each note stays before drifting to the next. */
@@ -103,20 +108,30 @@ fun GalleryScreen(
             byId[id]?.let { SlowZoomPaper(it, loadBitmap) }
         }
 
-        // Caption: always faintly visible, brighter when paused.
+        // Caption: always faintly visible, brighter when paused. Plain type for legibility.
         Column(
-            Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp),
+            Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                if (note.id in newIds) "새 쪽지" else "다시 보는 쪽지",
-                style = Type.Small,
-                modifier = Modifier.alpha(if (paused) 1f else 0.7f),
+                "${if (note.id in newIds) "새 쪽지" else "다시 보는 쪽지"}  ·  ${Korean.subject(note.fromMember)} ${note.toMember}에게  ·  ${note.dateLabel()}",
+                style = Type.Label,
+                modifier = Modifier.alpha(if (paused) 1f else 0.75f),
             )
+            if (!paused) Text("화면을 누르면 멈추고 읽어 드려요", style = Type.Small, modifier = Modifier.alpha(0.6f))
+        }
+
+        // Rest mode is otherwise invisible (it changes the climate), so say what it is doing.
+        if (resting) {
             Text(
-                "From. ${note.fromMember}  ·  ${note.dateLabel()}",
-                style = Type.Caption,
-                modifier = Modifier.alpha(if (paused) 1f else 0.7f),
+                "쉼표 모드 · 따뜻하고 조용한 바람",
+                style = Type.Label.copy(color = Palette.Night),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(28.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Palette.Amber)
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
             )
         }
 
@@ -129,7 +144,7 @@ fun GalleryScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 SoftButton("다시 듣기", onClick = { onRead(note) })
                 SoftButton("답장하기", onClick = { onReply(note) })
-                SoftButton(if (resting) "쉼표 끄기" else "쉼표 켜기", primary = !resting, onClick = onToggleRest)
+                SoftButton(if (resting) "쉼표 모드 끄기" else "쉼표 모드", primary = resting, onClick = onToggleRest)
                 SoftButton("닫기", onClick = onClose)
             }
         }
@@ -137,9 +152,9 @@ fun GalleryScreen(
             visible = paused,
             enter = fadeIn(tween(400)),
             exit = fadeOut(tween(400)),
-            modifier = Modifier.align(Alignment.TopStart).padding(28.dp),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(28.dp),
         ) {
-            Text("${safeIndex + 1} / ${shown.size}", style = Type.Small)
+            Text("${safeIndex + 1} / ${shown.size}", style = Type.Label)
         }
     }
 }
@@ -156,7 +171,8 @@ private fun SlowZoomPaper(note: Note, loadBitmap: suspend (String, Int) -> Bitma
     } else {
         4f / 3f
     }
-    Box(Modifier.fillMaxSize().padding(top = 56.dp, bottom = 120.dp), contentAlignment = Alignment.Center) {
+    // Top band is reserved for the pause controls so they never cover the note.
+    Box(Modifier.fillMaxSize().padding(top = 112.dp, bottom = 112.dp), contentAlignment = Alignment.Center) {
         PaperNote(
             note,
             bmp,

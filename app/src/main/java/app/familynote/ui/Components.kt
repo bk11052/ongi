@@ -170,6 +170,35 @@ fun PaperNote(
     }
 }
 
+/** A large, calm confirmation dialog with well-separated buttons (car-screen distance). */
+@Composable
+fun ConfirmDialog(
+    title: String,
+    body: String,
+    confirmText: String,
+    dismissText: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(24.dp))
+                .background(Palette.NightRaised)
+                .padding(40.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Text(title, style = Type.Label.copy(fontSize = Type.Label.fontSize * 1.2f))
+            Text(body, style = Type.Small)
+            Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+                // The safe choice is the prominent one.
+                SoftButton(dismissText, primary = true, onClick = onDismiss)
+                SoftButton(confirmText, onClick = onConfirm)
+            }
+        }
+    }
+}
+
 @Composable
 fun NewDot(size: Dp = 14.dp) {
     Box(

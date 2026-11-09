@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -40,6 +41,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.familynote.ui.ChipRow
+import app.familynote.ui.ConfirmDialog
+import app.familynote.ui.DrawDraft
 import app.familynote.ui.FamilyMembers
 import app.familynote.ui.SoftButton
 import app.familynote.ui.Stroke
@@ -61,19 +64,33 @@ private const val SAVE_LONG_SIDE = 1600
 
 @Composable
 fun DrawScreen(
+    /** A drawing kept from last time (e.g. the car left P mid-drawing); null for a blank page. */
+    draft: DrawDraft?,
+    /** Called when the screen closes: the unfinished drawing to keep, or null if none. */
+    onLeave: (DrawDraft?) -> Unit,
     onCancel: () -> Unit,
     /** Saves; the last argument reports success so the button can be re-enabled on failure. */
     onSave: (Bitmap, from: String, to: String, done: (Boolean) -> Unit) -> Unit,
 ) {
-    val strokes = remember { mutableStateListOf<Stroke>() }
+    val strokes = remember { mutableStateListOf<Stroke>().apply { draft?.let { addAll(it.strokes) } } }
     var current by remember { mutableStateOf<Stroke?>(null) }
     // Bumped on every new point so the canvas redraws while a stroke grows.
     var tick by remember { mutableIntStateOf(0) }
     var color by remember { mutableIntStateOf(CrayonColors[0]) }
     var width by remember { mutableStateOf(BrushWidths[1]) }
     var eraser by remember { mutableStateOf(false) }
-    var from by remember { mutableStateOf("딸") }
-    var to by remember { mutableStateOf("아빠") }
+    var from by remember { mutableStateOf(draft?.from ?: "딸") }
+    var to by remember { mutableStateOf(draft?.to ?: "아빠") }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    // Set once the drawing was saved or deliberately thrown away; otherwise it is kept on leave.
+    var done by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            val keep = strokes.filter { it !== current }
+            onLeave(if (!done && keep.isNotEmpty()) DrawDraft(keep, from, to) else null)
+        }
+    }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var saving by remember { mutableStateOf(false) }
 
@@ -144,8 +161,14 @@ fun DrawScreen(
             if (strokes.isEmpty()) {
                 Text(
                     "여기에 그려 주세요",
-                    style = Type.Caption.copy(color = Palette.PaperShade),
+                    style = Type.Caption.copy(color = Palette.PaperHint, fontSize = Type.Caption.fontSize * 1.4f),
                     modifier = Modifier.align(Alignment.Center),
+                )
+            } else if (draft != null && draft.strokes.size == strokes.size) {
+                Text(
+                    "그리던 그림을 그대로 남겨 뒀어요",
+                    style = Type.Small.copy(color = Palette.PaperHint),
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp),
                 )
             }
         }
@@ -180,13 +203,14 @@ fun DrawScreen(
                             .size(56.dp)
                             .clip(CircleShape)
                             .background(if (on) Palette.NightRaised else Color.Transparent)
+                            .border(if (on) 3.dp else 0.dp, Palette.Amber, CircleShape)
                             .clickable { width = w },
                         contentAlignment = Alignment.Center,
                     ) {
                         Box(Modifier.size((10 + i * 10).dp).clip(CircleShape).background(Palette.Moon))
                     }
                 }
-                SoftButton(if (eraser) "지우개 ✓" else "지우개", onClick = { eraser = !eraser })
+                SoftButton("지우개", Modifier.width(132.dp), primary = eraser, onClick = { eraser = !eraser })
             }
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 SoftButton("되돌리기", enabled = strokes.isNotEmpty() && current == null, onClick = {
@@ -202,7 +226,9 @@ fun DrawScreen(
             ChipRow("누구에게", FamilyMembers, to) { to = it }
             Spacer(Modifier.weight(1f))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SoftButton("취소", Modifier.weight(1f), onClick = onCancel)
+                SoftButton("취소", Modifier.weight(1f)) {
+                    if (strokes.isEmpty()) onCancel() else confirmDiscard = true
+                }
                 SoftButton(
                     "남기기",
                     Modifier.weight(1f),
@@ -214,11 +240,26 @@ fun DrawScreen(
                     val w = (canvasSize.width * scale).toInt().coerceAtLeast(1)
                     val h = (canvasSize.height * scale).toInt().coerceAtLeast(1)
                     onSave(StrokeRenderer.toBitmap(strokes.toList(), w, h), from, to) { ok ->
-                        if (!ok) saving = false
+                        if (ok) done = true else saving = false
                     }
                 }
             }
             Spacer(Modifier.height(4.dp))
         }
+    }
+
+    if (confirmDiscard) {
+        ConfirmDialog(
+            title = "그리던 그림을 버릴까요?",
+            body = "버린 그림은 되돌릴 수 없어요.",
+            confirmText = "버리기",
+            dismissText = "계속 그리기",
+            onConfirm = {
+                done = true
+                confirmDiscard = false
+                onCancel()
+            },
+            onDismiss = { confirmDiscard = false },
+        )
     }
 }

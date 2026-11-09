@@ -76,6 +76,14 @@ class MainViewModel(
     /** The gallery to return to after replying from it. */
     private var lastGallery: Screen.Gallery? = null
 
+    /** A drawing left unfinished (e.g. the car left P mid-drawing), offered again next time. */
+    private val _draft = MutableStateFlow<DrawDraft?>(null)
+    val draft: StateFlow<DrawDraft?> = _draft.asStateFlow()
+
+    fun keepDraft(d: DrawDraft?) {
+        _draft.value = d
+    }
+
     /** Set once the car has been driven; the next arrival in P opens the gallery. */
     private var hasDriven = false
 
@@ -106,10 +114,10 @@ class MainViewModel(
             if (previous == DriveState.PARKED && now == DriveState.DRIVING) announceWaitingNotes()
             return
         }
-        // Arrived in P after driving: greet with the gallery if there is anything to show.
+        // Arrived in P after driving: greet with the gallery if something new is waiting.
         if (hasDriven) {
             hasDriven = false
-            if (notes.value.isNotEmpty()) _screen.value = newGallery(auto = true)
+            if (notes.value.any { !it.seen }) _screen.value = newGallery(auto = true)
         }
     }
 
@@ -259,7 +267,13 @@ class MainViewModel(
             val ok = runCatching { repo.saveDrawing(bitmap, from, to) }
                 .onFailure { Log.e(TAG, "saveDrawing failed", it) }
                 .isSuccess
-            if (ok) back() else showMessage("그림을 저장하지 못했어요. 다시 한 번 눌러 주세요.")
+            if (ok) {
+                _draft.value = null
+                back()
+                showMessage("${to}에게 그림을 남겼어요")
+            } else {
+                showMessage("그림을 저장하지 못했어요. 다시 한 번 눌러 주세요.")
+            }
             onDone(ok)
         }
     }
@@ -270,7 +284,12 @@ class MainViewModel(
             val ok = runCatching { repo.saveText(text, from, to, replyToId) }
                 .onFailure { Log.e(TAG, "saveText failed", it) }
                 .isSuccess
-            if (ok) back() else showMessage("쪽지를 저장하지 못했어요. 다시 한 번 눌러 주세요.")
+            if (ok) {
+                back()
+                showMessage(if (replyToId != null) "${to}에게 답장을 남겼어요" else "${to}에게 쪽지를 남겼어요")
+            } else {
+                showMessage("쪽지를 저장하지 못했어요. 다시 한 번 눌러 주세요.")
+            }
             onDone(ok)
         }
     }
@@ -311,7 +330,7 @@ class MainViewModel(
     companion object {
         private const val TAG = "MainViewModel"
         private const val AMBIENT_STEPS = 5
-        private const val AMBIENT_FADE_MS = 1000L
+        private const val AMBIENT_FADE_MS = 2000L
         private const val MESSAGE_MS = 4000L
     }
 }

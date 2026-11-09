@@ -76,3 +76,6 @@ object StrokeRenderer {
         return bmp
     }
 }
+
+/** An unfinished drawing kept when the draw screen closes without saving (e.g. the car leaves P). */
+data class DrawDraft(val strokes: List<Stroke>, val from: String, val to: String)

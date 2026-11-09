@@ -18,7 +18,9 @@ object Palette {
     val Ink = Color(0xFF3A3530)
     val Amber = Color(0xFFF2A65A)
     val Moon = Color(0xFFE9E4DA)
-    val Dim = Color(0xFF8B8A93)
+    val Dim = Color(0xFFA7A6B0)
+    /** Hint text on paper: readable, but clearly not ink. */
+    val PaperHint = Color(0xFFA89A84)
 }
 
 val Handwriting = FontFamily(Font(R.font.nanum_pen_script))
@@ -26,9 +28,9 @@ val Handwriting = FontFamily(Font(R.font.nanum_pen_script))
 object Type {
     val Title = TextStyle(fontFamily = Handwriting, fontSize = 52.sp, color = Palette.Moon)
     val NoteBody = TextStyle(fontFamily = Handwriting, fontSize = 44.sp, lineHeight = 52.sp, color = Palette.Ink)
-    val Caption = TextStyle(fontFamily = Handwriting, fontSize = 32.sp, color = Palette.Moon)
-    val Label = TextStyle(fontSize = 22.sp, color = Palette.Moon)
-    val Small = TextStyle(fontSize = 18.sp, color = Palette.Dim)
+    val Caption = TextStyle(fontFamily = Handwriting, fontSize = 36.sp, color = Palette.Moon)
+    val Label = TextStyle(fontSize = 24.sp, color = Palette.Moon)
+    val Small = TextStyle(fontSize = 22.sp, color = Palette.Dim)
 }
 
 @Composable

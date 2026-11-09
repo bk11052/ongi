@@ -18,6 +18,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
@@ -39,6 +41,7 @@ fun FamilyNoteRoot(vm: MainViewModel) {
     val ambient by vm.ambient.collectAsStateWithLifecycle()
     val resting by vm.resting.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
+    val draft by vm.draft.collectAsStateWithLifecycle()
     val glow = animatedGlowColor(ambient)
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -73,6 +76,7 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                 is DriveState -> DrivingScreen(
                     unseen = notes.count { !it.seen },
                     connecting = target == DriveState.UNKNOWN,
+                    hasDraft = draft != null,
                 )
                 Screen.Home -> HomeScreen(
                     notes = notes,
@@ -80,9 +84,12 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                     onDraw = { vm.open(Screen.Draw) },
                     onWrite = { vm.open(Screen.Write()) },
                     onGallery = vm::openGallery,
+                    hasDraft = draft != null,
                     onDelete = vm::delete,
                 )
                 Screen.Draw -> DrawScreen(
+                    draft = draft,
+                    onLeave = vm::keepDraft,
                     onCancel = vm::back,
                     onSave = { bmp, from, to, done -> vm.saveDrawing(bmp, from, to, done) },
                 )
@@ -113,8 +120,13 @@ fun FamilyNoteRoot(vm: MainViewModel) {
         message?.let {
             Text(
                 it,
-                style = Type.Label,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                style = Type.Label.copy(color = Palette.Night),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Palette.Amber)
+                    .padding(horizontal = 32.dp, vertical = 16.dp),
             )
         }
     }
