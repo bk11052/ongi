@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app name is defined only here so it can be renamed in one place. -->
+    <string name="app_name">다녀왔어</string>
+</resources>

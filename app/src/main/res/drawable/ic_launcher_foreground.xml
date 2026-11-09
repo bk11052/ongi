@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- folded note -->
+    <path android:fillColor="#F6EFE4" android:pathData="M32,34h36l8,8v32h-44z" />
+    <path android:fillColor="#E4D8C4" android:pathData="M68,34v8h8z" />
+    <!-- heart -->
+    <path android:fillColor="#F2A65A"
+        android:pathData="M54,68c-6,-5 -12,-9 -12,-15a6,6 0,0 1,12 -2a6,6 0,0 1,12 2c0,6 -6,10 -12,15z" />
+</vector>

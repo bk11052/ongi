@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.hardware.type.automotive" android:required="true" />
+    <uses-feature android:name="android.hardware.screen.portrait" android:required="false" />
+    <uses-feature android:name="android.hardware.screen.landscape" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <!-- Gear selection (to know when the car is parked) -->
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <!-- Ambient light color follows the drawing on screen -->
+    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_LIGHTS" />
+    <!-- Rest mode: quiet, warm climate and a slightly reclined seat -->
+    <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_CLIMATE" />
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_SEATS" />
+
+    <application
+        android:name=".FamilyNoteApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.FamilyNote">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- While driving the app shows only a static "focus on driving" screen,
+                 so it may stay on screen under driving UX restrictions. -->
+            <meta-data android:name="distractionOptimized" android:value="true" />
+        </activity>
+    </application>
+</manifest>
