@@ -6,11 +6,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.familynote.data.Note
+import app.familynote.data.NoteKind
 import app.familynote.data.NoteRepository
+import app.familynote.util.Korean
 import app.familynote.util.ColorMath
 import app.familynote.vehicle.DriveState
 import app.familynote.vehicle.RestSnapshot
 import app.familynote.vehicle.VehicleGateway
+import app.familynote.voice.Voice
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -34,6 +37,7 @@ sealed interface Screen {
 class MainViewModel(
     private val repo: NoteRepository,
     private val vehicle: VehicleGateway,
+    private val voice: Voice,
     /** Outlives this ViewModel; used to restore the cabin after the screen is gone. */
     private val appScope: CoroutineScope,
 ) : ViewModel() {
@@ -72,7 +76,11 @@ class MainViewModel(
             now == DriveState.DRIVING -> {
                 // Leave any editing screen; unsaved strokes are dropped on purpose (safety first).
                 _screen.value = Screen.Home
+                colorJob?.cancel()
+                voice.stopListening()
                 if (_resting.value) setResting(false)
+                // Setting off: a short spoken heads-up instead of anything to look at.
+                if (previous == DriveState.PARKED) announceWaitingNotes()
             }
         }
     }
@@ -82,7 +90,32 @@ class MainViewModel(
         _screen.value = screen
     }
 
+    private fun announceWaitingNotes() {
+        val unseen = notes.value.filter { !it.seen }
+        if (unseen.isEmpty()) return
+        val senders = unseen.map { it.fromMember }.distinct()
+        val who = if (senders.size == 1) Korean.subject(senders.first()) else "가족이"
+        voice.speak("${who} 남긴 쪽지가 ${unseen.size}장 있어요. 도착하면 보여드릴게요.")
+    }
+
+    /** Reads a note aloud (text notes verbatim; drawings get a short introduction). */
+    fun readAloud(note: Note) {
+        val text = when (note.kind) {
+            NoteKind.TEXT -> note.text.orEmpty()
+            NoteKind.DRAWING -> "${Korean.subject(note.fromMember)} ${note.toMember}에게 남긴 그림이에요."
+        }
+        if (text.isNotBlank()) voice.speak(text)
+    }
+
+    fun listen(onText: (String, Boolean) -> Unit, onError: (String) -> Unit) {
+        if (drive.value != DriveState.PARKED) return
+        voice.listen(onText, onError)
+    }
+
+    fun stopListening() = voice.stopListening()
+
     fun closeGallery() {
+        voice.stopSpeaking()
         colorJob?.cancel()
         if (_resting.value) setResting(false)
         _screen.value = Screen.Home
@@ -157,6 +190,7 @@ class MainViewModel(
 
     override fun onCleared() {
         colorJob?.cancel()
+        voice.stopListening()
         val snapshot = restSnapshot
         if (_resting.value && snapshot != null) {
             // viewModelScope is already cancelled here; restore on the app scope.
@@ -167,11 +201,12 @@ class MainViewModel(
     class Factory(
         private val repo: NoteRepository,
         private val vehicle: VehicleGateway,
+        private val voice: Voice,
         private val appScope: CoroutineScope,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            MainViewModel(repo, vehicle, appScope) as T
+            MainViewModel(repo, vehicle, voice, appScope) as T
     }
 
     companion object {

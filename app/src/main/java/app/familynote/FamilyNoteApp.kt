@@ -8,6 +8,8 @@ import app.familynote.data.NoteRepository
 import app.familynote.vehicle.FakeVehicleGateway
 import app.familynote.vehicle.PleosVehicleGateway
 import app.familynote.vehicle.VehicleGateway
+import app.familynote.voice.PleosVoice
+import app.familynote.voice.Voice
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
@@ -30,4 +32,6 @@ class FamilyNoteApp : Application() {
             FakeVehicleGateway()
         }
     }
+
+    val voice: Voice by lazy { PleosVoice(this) }
 }

@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +54,7 @@ fun GalleryScreen(
     loadBitmap: suspend (String, Int) -> Bitmap?,
     onNoteShown: (Note) -> Unit,
     onToggleRest: () -> Unit,
+    onRead: (Note) -> Unit,
     onReply: (Note) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -69,6 +71,8 @@ fun GalleryScreen(
     var paused by remember { mutableStateOf(false) }
     val safeIndex = index % shown.size
     val note = shown[safeIndex]
+    // pointerInput below is keyed on Unit, so read the latest note through this.
+    val currentNote by rememberUpdatedState(note)
 
     val entry = remember { Animatable(0f) }
     LaunchedEffect(Unit) { entry.animateTo(1f, tween(ENTRY_FADE_MS)) }
@@ -84,7 +88,13 @@ fun GalleryScreen(
         Modifier
             .fillMaxSize()
             .alpha(entry.value)
-            .pointerInput(Unit) { detectTapGestures { paused = !paused } },
+            .pointerInput(Unit) {
+                detectTapGestures {
+                    paused = !paused
+                    // Pausing on a note reads it aloud; tapping again resumes the show.
+                    if (paused) onRead(currentNote)
+                }
+            },
     ) {
         Crossfade(targetState = note, animationSpec = tween(CROSSFADE_MS), label = "note") { n ->
             SlowZoomPaper(n, loadBitmap)
@@ -109,6 +119,7 @@ fun GalleryScreen(
             modifier = Modifier.align(Alignment.TopEnd).padding(28.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                SoftButton("다시 듣기", onClick = { onRead(note) })
                 SoftButton("답장하기", onClick = { onReply(note) })
                 SoftButton(if (resting) "쉼표 끄기" else "쉼표 켜기", primary = !resting, onClick = onToggleRest)
                 SoftButton("닫기", onClick = onClose)

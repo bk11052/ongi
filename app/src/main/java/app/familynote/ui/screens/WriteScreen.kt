@@ -1,5 +1,9 @@
 package app.familynote.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.unit.dp
 import app.familynote.data.Note
 import app.familynote.ui.ChipRow
@@ -35,6 +42,8 @@ private const val MAX_LEN = 200
 @Composable
 fun WriteScreen(
     replyTo: Note?,
+    onListen: (onText: (String, Boolean) -> Unit, onError: (String) -> Unit) -> Unit,
+    onStopListening: () -> Unit,
     onCancel: () -> Unit,
     onSave: (text: String, from: String, to: String) -> Unit,
 ) {
@@ -43,6 +52,35 @@ fun WriteScreen(
     var from by remember { mutableStateOf(replyTo?.toMember ?: "아빠") }
     var to by remember { mutableStateOf(replyTo?.fromMember ?: "딸") }
     var saving by remember { mutableStateOf(false) }
+    var listening by remember { mutableStateOf(false) }
+    var hint by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    fun startListening() {
+        // Speech is appended after whatever was already typed.
+        val base = text.trimEnd().let { if (it.isEmpty()) it else "$it " }
+        listening = true
+        hint = "듣고 있어요…"
+        onListen(
+            { heard, final ->
+                text = (base + heard).take(MAX_LEN)
+                if (final) {
+                    listening = false
+                    hint = null
+                }
+            },
+            { message ->
+                listening = false
+                hint = message
+            },
+        )
+    }
+
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startListening() else hint = "마이크 권한이 있어야 말로 쓸 수 있어요"
+    }
+
+    DisposableEffect(Unit) { onDispose { onStopListening() } }
 
     Row(Modifier.fillMaxSize().padding(28.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
         Box(
@@ -71,6 +109,19 @@ fun WriteScreen(
             ChipRow("누가", FamilyMembers, from) { from = it }
             ChipRow("누구에게", FamilyMembers, to) { to = it }
             Text("${text.length} / $MAX_LEN", style = Type.Small)
+            SoftButton(if (listening) "그만 듣기" else "말로 쓰기") {
+                when {
+                    listening -> {
+                        onStopListening()
+                        listening = false
+                        hint = null
+                    }
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                        PackageManager.PERMISSION_GRANTED -> startListening()
+                    else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            }
+            hint?.let { Text(it, style = Type.Small) }
             Spacer(Modifier.weight(1f))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 SoftButton("취소", Modifier.weight(1f), onClick = onCancel)

@@ -9,6 +9,7 @@ import app.familynote.ui.Screen
 import app.familynote.util.ColorMath
 import app.familynote.vehicle.DriveState
 import app.familynote.vehicle.FakeVehicleGateway
+import app.familynote.voice.FakeVoice
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -58,7 +59,7 @@ class MainViewModelTest {
     private fun TestScope.vm(notes: List<Note>, drive: DriveState): Pair<MainViewModel, FakeVehicleGateway> {
         val car = FakeVehicleGateway(drive)
         val repo = NoteRepository(FakeDao(notes), File("build/tmp-test"), dispatcher)
-        val vm = MainViewModel(repo, car, this)
+        val vm = MainViewModel(repo, car, FakeVoice(), this)
         return vm to car
     }
 

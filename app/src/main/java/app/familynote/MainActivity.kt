@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
     private val app get() = application as FamilyNoteApp
 
     private val vm: MainViewModel by viewModels {
-        MainViewModel.Factory(app.repository, app.vehicle, app.appScope)
+        MainViewModel.Factory(app.repository, app.vehicle, app.voice, app.appScope)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

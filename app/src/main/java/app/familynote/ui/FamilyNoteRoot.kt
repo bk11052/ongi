@@ -61,6 +61,8 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                 )
                 is Screen.Write -> WriteScreen(
                     replyTo = target.replyTo,
+                    onListen = vm::listen,
+                    onStopListening = vm::stopListening,
                     onCancel = vm::back,
                     onSave = { text, from, to ->
                         vm.saveText(text, from, to, target.replyTo?.id) { vm.back() }
@@ -72,6 +74,7 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                     loadBitmap = vm::loadBitmap,
                     onNoteShown = vm::onNoteShown,
                     onToggleRest = { vm.setResting(!resting) },
+                    onRead = vm::readAloud,
                     onReply = { vm.open(Screen.Write(replyTo = it)) },
                     onClose = vm::closeGallery,
                 )
