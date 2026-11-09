@@ -50,6 +50,7 @@ private const val ENTRY_FADE_MS = 1600
 @Composable
 fun GalleryScreen(
     notes: List<Note>,
+    startId: String?,
     resting: Boolean,
     loadBitmap: suspend (String, Int) -> Bitmap?,
     onNoteShown: (Note) -> Unit,
@@ -67,7 +68,7 @@ fun GalleryScreen(
         return
     }
 
-    var index by remember { mutableIntStateOf(0) }
+    var index by remember { mutableIntStateOf(order.indexOf(startId).coerceAtLeast(0)) }
     var paused by remember { mutableStateOf(false) }
     val safeIndex = index % shown.size
     val note = shown[safeIndex]
@@ -96,8 +97,9 @@ fun GalleryScreen(
                 }
             },
     ) {
-        Crossfade(targetState = note, animationSpec = tween(CROSSFADE_MS), label = "note") { n ->
-            SlowZoomPaper(n, loadBitmap)
+        // Keyed on the id: a note being marked "seen" must not trigger another cross-fade.
+        Crossfade(targetState = note.id, animationSpec = tween(CROSSFADE_MS), label = "note") { id ->
+            byId[id]?.let { SlowZoomPaper(it, loadBitmap) }
         }
 
         // Caption: always faintly visible, brighter when paused.

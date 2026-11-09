@@ -2,6 +2,8 @@ package app.familynote.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,9 +11,16 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.familynote.ui.screens.DrawScreen
 import app.familynote.ui.screens.DrivingScreen
@@ -19,6 +28,7 @@ import app.familynote.ui.screens.GalleryScreen
 import app.familynote.ui.screens.HomeScreen
 import app.familynote.ui.screens.WriteScreen
 import app.familynote.ui.theme.Palette
+import app.familynote.ui.theme.Type
 import app.familynote.vehicle.DriveState
 
 @Composable
@@ -28,7 +38,17 @@ fun FamilyNoteRoot(vm: MainViewModel) {
     val screen by vm.screen.collectAsStateWithLifecycle()
     val ambient by vm.ambient.collectAsStateWithLifecycle()
     val resting by vm.resting.collectAsStateWithLifecycle()
+    val message by vm.message.collectAsStateWithLifecycle()
     val glow = animatedGlowColor(ambient)
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(drive) {
+        if (drive != DriveState.PARKED) {
+            focus.clearFocus(force = true)
+            keyboard?.hide()
+        }
+    }
 
     // Anything but P (including "not known yet") shows only the static driving screen.
     val view: Any = if (drive != DriveState.PARKED) drive else screen
@@ -38,7 +58,14 @@ fun FamilyNoteRoot(vm: MainViewModel) {
     Box(Modifier.fillMaxSize().background(Palette.Night).ambientGlow(glow)) {
         AnimatedContent(
             targetState = view,
-            transitionSpec = { fadeIn(tween(700)) togetherWith fadeOut(tween(500)) },
+            transitionSpec = {
+                if (targetState is DriveState) {
+                    // Leaving P: the old screen must disappear at once so nothing stays touchable.
+                    EnterTransition.None togetherWith ExitTransition.None
+                } else {
+                    fadeIn(tween(700)) togetherWith fadeOut(tween(500))
+                }
+            },
             contentKey = { it::class },
             label = "screen",
         ) { target ->
@@ -52,24 +79,25 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                     loadBitmap = vm::loadBitmap,
                     onDraw = { vm.open(Screen.Draw) },
                     onWrite = { vm.open(Screen.Write()) },
-                    onGallery = { vm.open(Screen.Gallery(auto = false)) },
+                    onGallery = { startId -> vm.open(Screen.Gallery(auto = false, startId = startId)) },
                     onDelete = vm::delete,
                 )
                 Screen.Draw -> DrawScreen(
                     onCancel = vm::back,
-                    onSave = { bmp, from, to -> vm.saveDrawing(bmp, from, to) { vm.back() } },
+                    onSave = { bmp, from, to, done -> vm.saveDrawing(bmp, from, to, done) },
                 )
                 is Screen.Write -> WriteScreen(
                     replyTo = target.replyTo,
                     onListen = vm::listen,
                     onStopListening = vm::stopListening,
                     onCancel = vm::back,
-                    onSave = { text, from, to ->
-                        vm.saveText(text, from, to, target.replyTo?.id) { vm.back() }
+                    onSave = { text, from, to, done ->
+                        vm.saveText(text, from, to, target.replyTo?.id, done)
                     },
                 )
                 is Screen.Gallery -> GalleryScreen(
                     notes = notes,
+                    startId = target.startId,
                     resting = resting,
                     loadBitmap = vm::loadBitmap,
                     onNoteShown = vm::onNoteShown,
@@ -79,6 +107,13 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                     onClose = vm::closeGallery,
                 )
             }
+        }
+        message?.let {
+            Text(
+                it,
+                style = Type.Label,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+            )
         }
     }
 }

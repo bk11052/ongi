@@ -62,7 +62,8 @@ private const val SAVE_LONG_SIDE = 1600
 @Composable
 fun DrawScreen(
     onCancel: () -> Unit,
-    onSave: (Bitmap, from: String, to: String) -> Unit,
+    /** Saves; the last argument reports success so the button can be re-enabled on failure. */
+    onSave: (Bitmap, from: String, to: String, done: (Boolean) -> Unit) -> Unit,
 ) {
     val strokes = remember { mutableStateListOf<Stroke>() }
     var current by remember { mutableStateOf<Stroke?>(null) }
@@ -76,19 +77,38 @@ fun DrawScreen(
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var saving by remember { mutableStateOf(false) }
 
+    // Finished strokes are rendered once into this bitmap; each frame then draws the bitmap
+    // plus only the stroke in progress, so drawing stays smooth however busy the picture gets.
+    var committed by remember { mutableStateOf<Bitmap?>(null) }
+    fun recommit() {
+        val w = canvasSize.width
+        val h = canvasSize.height
+        if (w <= 0 || h <= 0) return
+        val finished = strokes.filter { it !== current }
+        val bmp = committed?.takeIf { it.width == w && it.height == h }
+            ?: Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { committed = it }
+        StrokeRenderer.draw(android.graphics.Canvas(bmp), w, h, finished)
+        tick++
+    }
+
     Row(Modifier.fillMaxSize().padding(28.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
         Box(
             Modifier
                 .weight(1f)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(8.dp))
-                .onSizeChanged { canvasSize = it }
+                .onSizeChanged {
+                    canvasSize = it
+                    committed = null
+                    recommit()
+                }
                 .pointerInput(Unit) {
                     detectTapGestures { p ->
                         if (size.width == 0 || size.height == 0) return@detectTapGestures
                         val s = Stroke(color, width, eraser)
                         s.add(p.x / size.width, p.y / size.height)
                         strokes += s
+                        recommit()
                     }
                 }
                 .pointerInput(Unit) {
@@ -103,15 +123,23 @@ fun DrawScreen(
                             current?.add(change.position.x / size.width, change.position.y / size.height)
                             tick++
                         },
-                        onDragEnd = { current = null },
-                        onDragCancel = { current = null },
+                        onDragEnd = { current = null; recommit() },
+                        onDragCancel = { current = null; recommit() },
                     )
                 },
         ) {
             Canvas(Modifier.fillMaxSize()) {
                 @Suppress("UNUSED_EXPRESSION") tick // read so new points trigger a redraw
                 drawIntoCanvas { c ->
-                    StrokeRenderer.draw(c.nativeCanvas, size.width.toInt(), size.height.toInt(), strokes)
+                    val w = size.width.toInt()
+                    val h = size.height.toInt()
+                    val cached = committed
+                    if (cached != null && cached.width == w && cached.height == h) {
+                        c.nativeCanvas.drawBitmap(cached, 0f, 0f, null)
+                        current?.let { StrokeRenderer.drawStrokes(c.nativeCanvas, w, h, listOf(it)) }
+                    } else {
+                        StrokeRenderer.draw(c.nativeCanvas, w, h, strokes)
+                    }
                 }
             }
             if (strokes.isEmpty()) {
@@ -162,8 +190,14 @@ fun DrawScreen(
                 SoftButton(if (eraser) "지우개 ✓" else "지우개", onClick = { eraser = !eraser })
             }
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SoftButton("되돌리기", enabled = strokes.isNotEmpty(), onClick = { strokes.removeLastOrNull() })
-                SoftButton("모두 지우기", enabled = strokes.isNotEmpty(), onClick = { strokes.clear() })
+                SoftButton("되돌리기", enabled = strokes.isNotEmpty(), onClick = {
+                    strokes.removeLastOrNull()
+                    recommit()
+                })
+                SoftButton("모두 지우기", enabled = strokes.isNotEmpty(), onClick = {
+                    strokes.clear()
+                    recommit()
+                })
             }
             ChipRow("누가", FamilyMembers, from) { from = it }
             ChipRow("누구에게", FamilyMembers, to) { to = it }
@@ -180,7 +214,9 @@ fun DrawScreen(
                     val scale = SAVE_LONG_SIDE.toFloat() / maxOf(canvasSize.width, canvasSize.height)
                     val w = (canvasSize.width * scale).toInt().coerceAtLeast(1)
                     val h = (canvasSize.height * scale).toInt().coerceAtLeast(1)
-                    onSave(StrokeRenderer.toBitmap(strokes.toList(), w, h), from, to)
+                    onSave(StrokeRenderer.toBitmap(strokes.toList(), w, h), from, to) { ok ->
+                        if (!ok) saving = false
+                    }
                 }
             }
             Spacer(Modifier.height(4.dp))

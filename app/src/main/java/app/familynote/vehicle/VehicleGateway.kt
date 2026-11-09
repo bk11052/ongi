@@ -17,7 +17,6 @@ enum class DriveState {
 data class RestSnapshot(
     val temperatureC: Float?,
     val fanSpeed: Int?,
-    val backrestPosition: Int?,
 )
 
 /**
@@ -39,7 +38,10 @@ interface VehicleGateway {
     /** Sets the cabin ambient light color. Returns false if the car rejected it or it is unsupported. */
     suspend fun setAmbientColor(argb: Int): Boolean
 
-    /** Warm, quiet cabin: softer climate and a slightly reclined driver seat. Returns what to restore. */
+    /** Puts the ambient light back to what the car had before the app changed it. */
+    suspend fun restoreAmbient()
+
+    /** Warm, quiet cabin: warmer, quieter climate. Returns what to restore. */
     suspend fun enterRest(): RestSnapshot
 
     suspend fun exitRest(snapshot: RestSnapshot)
@@ -56,6 +58,8 @@ class FakeVehicleGateway(initial: DriveState = DriveState.PARKED) : VehicleGatew
     val appliedColors = mutableListOf<Int>()
     var restCalls = 0
         private set
+    var ambientRestored = 0
+        private set
 
     fun setDriveState(state: DriveState) {
         _drive.value = state
@@ -70,9 +74,14 @@ class FakeVehicleGateway(initial: DriveState = DriveState.PARKED) : VehicleGatew
         return true
     }
 
+    override suspend fun restoreAmbient() {
+        ambientRestored++
+        _ambient.value = null
+    }
+
     override suspend fun enterRest(): RestSnapshot {
         restCalls++
-        return RestSnapshot(null, null, null)
+        return RestSnapshot(null, null)
     }
 
     override suspend fun exitRest(snapshot: RestSnapshot) {

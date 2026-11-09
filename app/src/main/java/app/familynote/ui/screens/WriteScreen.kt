@@ -45,7 +45,8 @@ fun WriteScreen(
     onListen: (onText: (String, Boolean) -> Unit, onError: (String) -> Unit) -> Unit,
     onStopListening: () -> Unit,
     onCancel: () -> Unit,
-    onSave: (text: String, from: String, to: String) -> Unit,
+    /** Saves; the last argument reports success so the button can be re-enabled on failure. */
+    onSave: (text: String, from: String, to: String, done: (Boolean) -> Unit) -> Unit,
 ) {
     var text by remember { mutableStateOf("") }
     // A reply goes back to whoever wrote the original note.
@@ -127,7 +128,8 @@ fun WriteScreen(
                 SoftButton("취소", Modifier.weight(1f), onClick = onCancel)
                 SoftButton("남기기", Modifier.weight(1f), primary = true, enabled = text.isNotBlank() && !saving) {
                     saving = true
-                    onSave(text, from, to)
+                    onStopListening()
+                    onSave(text, from, to) { ok -> if (!ok) saving = false }
                 }
             }
         }

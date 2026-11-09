@@ -39,6 +39,11 @@ object StrokeRenderer {
     /** Draws paper and strokes onto [canvas] of size [w]x[h]. Must be called from one thread. */
     fun draw(canvas: Canvas, w: Int, h: Int, strokes: List<Stroke>) {
         canvas.drawColor(ColorMath.PAPER)
+        drawStrokes(canvas, w, h, strokes)
+    }
+
+    /** Draws only the strokes (no paper), e.g. the one in progress on top of a cached image. */
+    fun drawStrokes(canvas: Canvas, w: Int, h: Int, strokes: List<Stroke>) {
         val unit = minOf(w, h).toFloat()
         for (s in strokes) {
             if (s.size == 0) continue

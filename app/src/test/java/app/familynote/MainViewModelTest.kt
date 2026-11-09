@@ -127,4 +127,65 @@ class MainViewModelTest {
         assertEquals(0, car.restCalls)
         assertEquals(false, vm.resting.value)
     }
+
+    @Test
+    fun closingGalleryRestoresCabinLight() = runTest(dispatcher) {
+        val (vm, car) = vm(listOf(note("a")), DriveState.PARKED)
+        advanceUntilIdle()
+        vm.open(Screen.Gallery(auto = false))
+        vm.onNoteShown(vm.notes.value.first())
+        advanceUntilIdle()
+        vm.closeGallery()
+        advanceUntilIdle()
+        assertTrue(car.ambientRestored >= 1)
+        assertEquals(null, car.ambientColor.value)
+        assertEquals(Screen.Home, vm.screen.value)
+    }
+
+    @Test
+    fun drivingRestoresCabinLight() = runTest(dispatcher) {
+        val (vm, car) = vm(listOf(note("a")), DriveState.PARKED)
+        advanceUntilIdle()
+        vm.onNoteShown(vm.notes.value.first())
+        advanceUntilIdle()
+        val before = car.ambientRestored
+        car.setDriveState(DriveState.DRIVING)
+        advanceUntilIdle()
+        assertTrue(car.ambientRestored > before)
+    }
+
+    @Test
+    fun unknownAfterDrivingStillGreetsOnPark() = runTest(dispatcher) {
+        val (vm, car) = vm(listOf(note("a")), DriveState.PARKED)
+        advanceUntilIdle()
+        car.setDriveState(DriveState.DRIVING)
+        advanceUntilIdle()
+        car.setDriveState(DriveState.UNKNOWN)
+        advanceUntilIdle()
+        car.setDriveState(DriveState.PARKED)
+        advanceUntilIdle()
+        assertEquals(Screen.Gallery(auto = true), vm.screen.value)
+    }
+
+    @Test
+    fun replyGoesBackToGalleryAtThatNote() = runTest(dispatcher) {
+        val n = note("a")
+        val (vm, _) = vm(listOf(n), DriveState.PARKED)
+        advanceUntilIdle()
+        vm.open(Screen.Write(replyTo = n))
+        vm.back()
+        assertEquals(Screen.Gallery(auto = false, startId = "a"), vm.screen.value)
+    }
+
+    @Test
+    fun departureAnnouncesUnseenNotes() = runTest(dispatcher) {
+        val voice = FakeVoice()
+        val car = FakeVehicleGateway(DriveState.PARKED)
+        val repo = NoteRepository(FakeDao(listOf(note("a"))), File("build/tmp-test"), dispatcher)
+        MainViewModel(repo, car, voice, this)
+        advanceUntilIdle()
+        car.setDriveState(DriveState.DRIVING)
+        advanceUntilIdle()
+        assertEquals(listOf("딸이 남긴 쪽지가 1장 있어요. 도착하면 보여드릴게요."), voice.spoken)
+    }
 }

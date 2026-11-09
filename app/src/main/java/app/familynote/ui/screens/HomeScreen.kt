@@ -43,7 +43,8 @@ fun HomeScreen(
     loadBitmap: suspend (String, Int) -> Bitmap?,
     onDraw: () -> Unit,
     onWrite: () -> Unit,
-    onGallery: () -> Unit,
+    /** Opens the gallery, starting at the given note (null = newest). */
+    onGallery: (String?) -> Unit,
     onDelete: (Note) -> Unit,
 ) {
     var pendingDelete by remember { mutableStateOf<Note?>(null) }
@@ -61,7 +62,7 @@ fun HomeScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 SoftButton("그림 남기기", onClick = onDraw)
                 SoftButton("글 남기기", onClick = onWrite)
-                SoftButton("쉼표", primary = true, enabled = notes.isNotEmpty(), onClick = onGallery)
+                SoftButton("쉼표", primary = true, enabled = notes.isNotEmpty(), onClick = { onGallery(null) })
             }
         }
         Spacer(Modifier.height(28.dp))
@@ -84,7 +85,7 @@ fun HomeScreen(
                     val bmp = rememberNoteBitmap(note.imagePath, 480, loadBitmap)
                     Column(
                         Modifier.combinedClickable(
-                            onClick = onGallery,
+                            onClick = { onGallery(note.id) },
                             onLongClick = { pendingDelete = note },
                         ),
                     ) {
