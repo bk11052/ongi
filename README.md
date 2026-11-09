@@ -7,11 +7,11 @@
 |---|---|---|
 | ![쪽지함](docs/screenshots/01_home.png) | ![운전 중](docs/screenshots/02_driving.png) | ![갤러리](docs/screenshots/03_arrive_gallery.png) |
 
-| 멈춤 · 쉼표 모드 | 그림 남기기 |
-|---|---|
-| ![멈춤](docs/screenshots/05_paused_rest_mode.png) | ![그리기](docs/screenshots/06_draw.png) |
+| 내비 위로 뜨는 도착 알림 | 멈춤 · 쉼표 모드 | 그림 남기기 |
+|---|---|---|
+| ![도착 알림](docs/screenshots/04_arrival_notification.png) | ![멈춤](docs/screenshots/05_paused_rest_mode.png) | ![그리기](docs/screenshots/06_draw.png) |
 
-*Pleos Connect Emulator v2.1.0에서 캡처. 화면 가장자리 빛과 실내 앰비언트 조명이 그림 색을 따라 바뀐다.*
+*Pleos Connect Emulator v2.1.0에서 캡처. 화면 가장자리 빛과 실내 앰비언트 조명이 그림 색을 따라 바뀐다(Virtual Console로 확인).*
 
 ## 주요 기능
 | 기능 | 설명 | 사용 SDK |
