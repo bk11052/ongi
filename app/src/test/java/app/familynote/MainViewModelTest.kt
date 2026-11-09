@@ -8,6 +8,8 @@ import app.familynote.ui.MainViewModel
 import app.familynote.ui.Screen
 import app.familynote.util.ColorMath
 import app.familynote.vehicle.Cabin
+import app.familynote.data.FamilySettings
+import app.familynote.arrival.Arrival
 import app.familynote.vehicle.DriveState
 import app.familynote.vehicle.FakeVehicleGateway
 import app.familynote.voice.FakeVoice
@@ -60,7 +62,7 @@ class MainViewModelTest {
     private fun TestScope.vm(notes: List<Note>, drive: DriveState): Pair<MainViewModel, FakeVehicleGateway> {
         val car = FakeVehicleGateway(drive)
         val repo = NoteRepository(FakeDao(notes), File("build/tmp-test"), dispatcher)
-        val vm = MainViewModel(repo, car, FakeVoice(), Cabin(this))
+        val vm = MainViewModel(repo, car, FakeVoice(), Cabin(this), FamilySettings("아빠"), MutableStateFlow<Arrival?>(null))
         vm.onForegrounded()
         return vm to car
     }
@@ -187,18 +189,6 @@ class MainViewModelTest {
     }
 
     @Test
-    fun departureAnnouncesUnseenNotes() = runTest(dispatcher) {
-        val voice = FakeVoice()
-        val car = FakeVehicleGateway(DriveState.PARKED)
-        val repo = NoteRepository(FakeDao(listOf(note("a"))), File("build/tmp-test"), dispatcher)
-        MainViewModel(repo, car, voice, Cabin(this))
-        advanceUntilIdle()
-        car.setDriveState(DriveState.DRIVING)
-        advanceUntilIdle()
-        assertEquals(listOf("딸이 남긴 쪽지가 1장 있어요. 도착하면 보여드릴게요."), voice.spoken)
-    }
-
-    @Test
     fun noFadeAfterGalleryClosed() = runTest(dispatcher) {
         val (vm, car) = vm(listOf(note("a")), DriveState.PARKED)
         advanceUntilIdle()
@@ -248,5 +238,30 @@ class MainViewModelTest {
         val g = vm.screen.value as Screen.Gallery
         assertEquals(listOf("new", "old"), g.order)
         assertEquals(setOf("new"), g.newIds)
+    }
+
+    @Test
+    fun onlyNotesForTheDriverGreetOnArrival() = runTest(dispatcher) {
+        val forMom = note("m").copy(toMember = "엄마")
+        val (vm, car) = vm(listOf(forMom), DriveState.DRIVING)
+        advanceUntilIdle()
+        car.setDriveState(DriveState.PARKED)
+        advanceUntilIdle()
+        assertEquals(Screen.Home, vm.screen.value)
+        vm.setDriver("엄마")
+        car.setDriveState(DriveState.DRIVING); advanceUntilIdle()
+        car.setDriveState(DriveState.PARKED); advanceUntilIdle()
+        assertTrue(vm.screen.value is Screen.Gallery)
+    }
+
+    @Test
+    fun notesForOthersStayUnseen() = runTest(dispatcher) {
+        val forMom = note("m").copy(toMember = "엄마")
+        val (vm, _) = vm(listOf(forMom), DriveState.PARKED)
+        advanceUntilIdle()
+        vm.openGallery()
+        vm.onNoteShown(vm.notes.value.first())
+        advanceUntilIdle()
+        assertEquals(false, vm.notes.value.first().seen)
     }
 }

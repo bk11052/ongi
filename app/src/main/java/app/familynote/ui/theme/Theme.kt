@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import app.familynote.R
 
@@ -26,9 +27,10 @@ object Palette {
 val Handwriting = FontFamily(Font(R.font.nanum_pen_script))
 
 object Type {
-    val Title = TextStyle(fontFamily = Handwriting, fontSize = 52.sp, color = Palette.Moon)
+    // UI text is plain and calm; the handwriting font is kept for the notes themselves.
+    val Title = TextStyle(fontSize = 40.sp, fontWeight = FontWeight.SemiBold, color = Palette.Moon)
     val NoteBody = TextStyle(fontFamily = Handwriting, fontSize = 44.sp, lineHeight = 52.sp, color = Palette.Ink)
-    val Caption = TextStyle(fontFamily = Handwriting, fontSize = 36.sp, color = Palette.Moon)
+    val Caption = TextStyle(fontSize = 28.sp, color = Palette.Moon)
     val Label = TextStyle(fontSize = 24.sp, color = Palette.Moon)
     val Small = TextStyle(fontSize = 22.sp, color = Palette.Dim)
 }

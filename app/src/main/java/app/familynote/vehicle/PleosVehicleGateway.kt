@@ -261,6 +261,17 @@ class PleosVehicleGateway(
         restoreAmbient()
     }
 
+    // ---- Trip -------------------------------------------------------------------------
+
+    override suspend fun tripSummary(): TripSummary? {
+        val odo = vehicle.getOdometer()
+        val km = call<Float> { ok, fail -> odo.getTripCurrentDrivingDistance(ok, fail) } ?: return null
+        // Trip time is reported in seconds.
+        val seconds = call<Int> { ok, fail -> odo.getTripCurrentDrivingTime(ok, fail) }
+        Log.i(TAG, "trip: ${km}km, ${seconds}s")
+        return TripSummary(km, seconds?.let { it / 60 })
+    }
+
     // ---- Plumbing ---------------------------------------------------------------------
 
     /**

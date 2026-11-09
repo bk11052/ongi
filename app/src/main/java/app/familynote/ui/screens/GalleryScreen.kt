@@ -55,6 +55,8 @@ private const val ENTRY_FADE_MS = 1600
 @Composable
 fun GalleryScreen(
     notes: List<Note>,
+    /** Short line shown after an arrival (e.g. today's trip); null otherwise. */
+    greeting: String?,
     /** Frozen show order and the ids that were new when the gallery opened (from the ViewModel). */
     order: List<String>,
     newIds: Set<String>,
@@ -119,6 +121,14 @@ fun GalleryScreen(
                 modifier = Modifier.alpha(if (paused) 1f else 0.75f),
             )
             if (!paused) Text("화면을 누르면 멈추고 읽어 드려요", style = Type.Small, modifier = Modifier.alpha(0.6f))
+        }
+
+        if (greeting != null && !paused) {
+            Text(
+                greeting,
+                style = Type.Label,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 40.dp).alpha(0.9f),
+            )
         }
 
         // Rest mode is otherwise invisible (it changes the climate), so say what it is doing.

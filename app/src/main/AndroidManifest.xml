@@ -16,6 +16,12 @@
     <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
     <uses-permission android:name="pleos.car.permission.CONTROL_CAR_CLIMATE" />
 
+    <!-- Arrival detection keeps running while another app (e.g. navigation) is in front -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Reading notes aloud and voice replies (Pleos on-device TTS/STT) -->
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
     <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
@@ -33,6 +39,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:resizeableActivity="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -42,5 +49,22 @@
                  so it may stay on screen under driving UX restrictions. -->
             <meta-data android:name="distractionOptimized" android:value="true" />
         </activity>
+
+        <service
+            android:name=".arrival.ArrivalService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Watches the vehicle gear to show family notes when the car is parked on arrival." />
+        </service>
+
+        <receiver
+            android:name=".arrival.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

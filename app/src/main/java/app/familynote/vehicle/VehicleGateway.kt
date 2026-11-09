@@ -13,6 +13,9 @@ enum class DriveState {
     UNKNOWN,
 }
 
+/** The trip that just ended, for a short "수고했어요" line on arrival. */
+data class TripSummary(val distanceKm: Float, val minutes: Int?)
+
 /** Cabin state saved before rest mode, so it can be restored afterwards. */
 data class RestSnapshot(
     val temperatureC: Float?,
@@ -52,6 +55,9 @@ interface VehicleGateway {
 
     /** Undoes cabin changes left over from a previous run (crash, failed restore). */
     suspend fun recoverPendingCabin()
+
+    /** Distance and time of the current trip, or null if the car does not report them. */
+    suspend fun tripSummary(): TripSummary?
 }
 
 /** In-memory gateway for unit tests and for devices without the Pleos vehicle service. */
@@ -92,6 +98,9 @@ class FakeVehicleGateway(initial: DriveState = DriveState.PARKED) : VehicleGatew
     }
 
     override suspend fun recoverPendingCabin() = Unit
+
+    var trip: TripSummary? = null
+    override suspend fun tripSummary() = trip
 
     override suspend fun enterRest(): RestSnapshot {
         restCalls++

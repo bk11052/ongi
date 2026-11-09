@@ -52,10 +52,12 @@ fun Note.dateLabel(): String = dateFormat.format(Date(createdAt))
  * change is also visible on screen (and in recordings). Drawn behind the content so it
  * never tints the notes themselves.
  */
-fun Modifier.ambientGlow(color: Color, strength: Float = 0.32f): Modifier = drawBehind {
+fun Modifier.ambientGlow(color: Color, strength: Float = 0.42f): Modifier = drawBehind {
     if (color.alpha == 0f) return@drawBehind
+    // Lift the color toward white a little: over the dark background a low-alpha warm color
+    // otherwise reads as muddy brown rather than light.
     val edge = size.minDimension * 0.22f
-    val c = color.copy(alpha = strength)
+    val c = androidx.compose.ui.graphics.lerp(color, Color.White, 0.18f).copy(alpha = strength)
     val clear = Color.Transparent
     drawRect(Brush.verticalGradient(listOf(c, clear), startY = 0f, endY = edge))
     drawRect(Brush.verticalGradient(listOf(clear, c), startY = size.height - edge, endY = size.height))

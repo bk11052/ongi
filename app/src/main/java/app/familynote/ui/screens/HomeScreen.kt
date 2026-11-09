@@ -28,6 +28,13 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
 import app.familynote.data.Note
 import app.familynote.ui.ConfirmDialog
+import app.familynote.ui.ChipRow
+import app.familynote.ui.FamilyMembers
+import app.familynote.data.FamilySettings
+import app.familynote.ui.theme.Palette
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import app.familynote.ui.NewDot
 import app.familynote.ui.PaperNote
 import app.familynote.ui.SoftButton
@@ -39,6 +46,10 @@ import app.familynote.ui.theme.Type
 @Composable
 fun HomeScreen(
     notes: List<Note>,
+    /** Notes waiting for the driver (or the whole family). */
+    waiting: Int,
+    driver: String,
+    onDriverChange: (String) -> Unit,
     loadBitmap: suspend (String, Int) -> Bitmap?,
     onDraw: () -> Unit,
     onWrite: () -> Unit,
@@ -49,14 +60,14 @@ fun HomeScreen(
     onDelete: (Note) -> Unit,
 ) {
     var pendingDelete by remember { mutableStateOf<Note?>(null) }
+    var choosingDriver by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 32.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("우리 쪽지함", style = Type.Title)
-                val unseen = notes.count { !it.seen }
                 Text(
-                    if (unseen > 0) "새 쪽지 ${unseen}장이 기다리고 있어요" else "차 안에 남겨진 마음들",
+                    if (waiting > 0) "${driver}에게 새 쪽지 ${waiting}장이 기다리고 있어요" else "차 안에 남겨진 마음들",
                     style = Type.Small,
                 )
                 if (notes.isNotEmpty()) {
@@ -64,6 +75,7 @@ fun HomeScreen(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                SoftButton("운전하는 사람: $driver", onClick = { choosingDriver = true })
                 SoftButton(if (hasDraft) "그리던 그림 이어 그리기" else "그림 남기기", onClick = onDraw)
                 SoftButton("글 남기기", onClick = onWrite)
                 SoftButton("쪽지 보기", primary = true, enabled = notes.isNotEmpty(), onClick = { onGallery(null) })
@@ -79,7 +91,7 @@ fun HomeScreen(
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 300.dp),
+                columns = GridCells.Adaptive(minSize = 360.dp),
                 horizontalArrangement = Arrangement.spacedBy(28.dp),
                 verticalArrangement = Arrangement.spacedBy(28.dp),
             ) {
@@ -108,6 +120,25 @@ fun HomeScreen(
                             modifier = Modifier.padding(top = 10.dp),
                         )
                     }
+                }
+            }
+        }
+    }
+
+    if (choosingDriver) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { choosingDriver = false }) {
+            Column(
+                Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Palette.NightRaised)
+                    .padding(40.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                Text("이 차를 주로 운전하는 사람", style = Type.Label)
+                Text("도착하면 이 사람에게 온 쪽지를 먼저 보여 드려요", style = Type.Small)
+                ChipRow("", FamilyMembers.filter { it != FamilySettings.WHOLE_FAMILY }, driver) {
+                    onDriverChange(it)
+                    choosingDriver = false
                 }
             }
         }

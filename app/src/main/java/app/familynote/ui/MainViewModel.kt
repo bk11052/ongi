@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import app.familynote.arrival.Arrival
+import app.familynote.data.FamilySettings
 import app.familynote.data.Note
 import app.familynote.data.NoteKind
 import app.familynote.data.NoteRepository
@@ -51,7 +53,15 @@ class MainViewModel(
     private val voice: Voice,
     /** App-wide serializer for cabin changes; outlives this ViewModel. */
     private val cabin: Cabin,
+    private val settings: FamilySettings,
+    /** Latest arrival from the app-wide monitor (trip summary for the gallery). */
+    val arrival: StateFlow<Arrival?>,
 ) : ViewModel() {
+
+    /** Who mainly drives this car; notes to them (or the whole family) greet on arrival. */
+    val driver: StateFlow<String> = settings.driver
+
+    fun setDriver(name: String) = settings.setDriver(name)
 
     val notes: StateFlow<List<Note>> =
         repo.notes.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -107,32 +117,36 @@ class MainViewModel(
             _screen.value = Screen.Home
             lastGallery = null
             colorJob?.cancel()
+            // Speaking is owned by the app-wide ArrivalMonitor (departure announcement), so
+            // only stop listening here.
             voice.stopListening()
-            voice.stopSpeaking()
             leaveCabinAsFound()
-            // Setting off: a short spoken heads-up instead of anything to look at.
-            if (previous == DriveState.PARKED && now == DriveState.DRIVING) announceWaitingNotes()
             return
         }
         // Arrived in P after driving: greet with the gallery if something new is waiting.
         if (hasDriven) {
             hasDriven = false
-            if (notes.value.any { !it.seen }) _screen.value = newGallery(auto = true)
+            if (waitingForDriver().isNotEmpty()) _screen.value = newGallery(auto = true)
         }
     }
 
-    /** Freezes the show order now: new notes first (oldest first), then older ones. */
+    private fun waitingForDriver() = notes.value.filter { !it.seen && settings.isForDriver(it) }
+
+    /**
+     * Freezes the show order now: notes waiting for the driver first (oldest first), then
+     * everything else to revisit.
+     */
     private fun newGallery(auto: Boolean, startId: String? = null): Screen.Gallery {
         val all = notes.value
-        val fresh = all.filter { !it.seen }.sortedBy { it.createdAt }
+        val fresh = waitingForDriver().sortedBy { it.createdAt }
         val newIds = fresh.map { it.id }.toSet()
         val order = fresh.map { it.id } + all.filter { it.id !in newIds }.map { it.id }
         return Screen.Gallery(auto, order, newIds, startId).also { lastGallery = it }
     }
 
-    fun openGallery(startId: String? = null) {
+    fun openGallery(startId: String? = null, auto: Boolean = false) {
         if (drive.value != DriveState.PARKED || notes.value.isEmpty()) return
-        _screen.value = newGallery(auto = false, startId = startId)
+        _screen.value = newGallery(auto = auto, startId = startId)
     }
 
     fun open(screen: Screen) {
@@ -158,14 +172,6 @@ class MainViewModel(
         leaveCabinAsFound()
     }
 
-    private fun announceWaitingNotes() {
-        val unseen = notes.value.filter { !it.seen }
-        if (unseen.isEmpty()) return
-        val senders = unseen.map { it.fromMember }.distinct()
-        val who = if (senders.size == 1) Korean.subject(senders.first()) else "가족이"
-        voice.speak("$who 남긴 쪽지가 ${unseen.size}장 있어요. 도착하면 보여드릴게요.")
-    }
-
     /** Reads a note aloud (text notes verbatim; drawings get a short introduction). */
     fun readAloud(note: Note) {
         val text = when (note.kind) {
@@ -184,7 +190,10 @@ class MainViewModel(
 
     /** Called by the gallery whenever a new note comes on screen. */
     fun onNoteShown(note: Note) {
-        if (!note.seen) viewModelScope.launch { runCatching { repo.markSeen(note.id) } }
+        // Only the driver's own notes become "seen"; notes for others keep waiting for them.
+        if (!note.seen && settings.isForDriver(note)) {
+            viewModelScope.launch { runCatching { repo.markSeen(note.id) } }
+        }
         fadeAmbientTo(note.accentColor)
     }
 
@@ -321,10 +330,12 @@ class MainViewModel(
         private val vehicle: VehicleGateway,
         private val voice: Voice,
         private val cabin: Cabin,
+        private val settings: FamilySettings,
+        private val arrival: StateFlow<Arrival?>,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            MainViewModel(repo, vehicle, voice, cabin) as T
+            MainViewModel(repo, vehicle, voice, cabin, settings, arrival) as T
     }
 
     companion object {

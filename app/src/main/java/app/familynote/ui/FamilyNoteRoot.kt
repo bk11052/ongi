@@ -32,6 +32,8 @@ import app.familynote.ui.screens.WriteScreen
 import app.familynote.ui.theme.Palette
 import app.familynote.ui.theme.Type
 import app.familynote.vehicle.DriveState
+import app.familynote.arrival.ArrivalMonitor
+import app.familynote.data.FamilySettings
 
 @Composable
 fun FamilyNoteRoot(vm: MainViewModel) {
@@ -42,6 +44,9 @@ fun FamilyNoteRoot(vm: MainViewModel) {
     val resting by vm.resting.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val draft by vm.draft.collectAsStateWithLifecycle()
+    val driver by vm.driver.collectAsStateWithLifecycle()
+    val arrival by vm.arrival.collectAsStateWithLifecycle()
+    val waiting = notes.count { !it.seen && FamilySettings.isFor(it, driver) }
     val glow = animatedGlowColor(ambient)
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -74,16 +79,19 @@ fun FamilyNoteRoot(vm: MainViewModel) {
         ) { target ->
             when (target) {
                 is DriveState -> DrivingScreen(
-                    unseen = notes.count { !it.seen },
+                    unseen = waiting,
                     connecting = target == DriveState.UNKNOWN,
                     hasDraft = draft != null,
                 )
                 Screen.Home -> HomeScreen(
                     notes = notes,
+                    waiting = waiting,
+                    driver = driver,
+                    onDriverChange = vm::setDriver,
                     loadBitmap = vm::loadBitmap,
                     onDraw = { vm.open(Screen.Draw) },
                     onWrite = { vm.open(Screen.Write()) },
-                    onGallery = vm::openGallery,
+                    onGallery = { vm.openGallery(it) },
                     hasDraft = draft != null,
                     onDelete = vm::delete,
                 )
@@ -104,6 +112,11 @@ fun FamilyNoteRoot(vm: MainViewModel) {
                 )
                 is Screen.Gallery -> GalleryScreen(
                     notes = notes,
+                    // Show the trip line only right after an arrival that opened the gallery.
+                    greeting = arrival
+                        ?.takeIf { target.auto && System.currentTimeMillis() - it.at < 5 * 60_000 }
+                        ?.let { ArrivalMonitor.tripLine(it.trip) }
+                        ?.let { "$it. 수고했어요" },
                     order = target.order,
                     newIds = target.newIds,
                     startId = target.startId,
