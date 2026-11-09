@@ -12,11 +12,9 @@
     <!-- Ambient light color follows the drawing on screen -->
     <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />
     <uses-permission android:name="pleos.car.permission.CONTROL_CAR_LIGHTS" />
-    <!-- Rest mode: quiet, warm climate and a slightly reclined seat -->
+    <!-- Rest mode: a warmer, quieter climate -->
     <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
     <uses-permission android:name="pleos.car.permission.CONTROL_CAR_CLIMATE" />
-    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
-    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_SEATS" />
 
     <!-- Voice reply to a note (speech to text) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
