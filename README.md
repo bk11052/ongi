@@ -48,7 +48,7 @@ Pleos SDK는 `settings.gradle.kts`에 등록된 Pleos Maven 저장소(`nexus-pla
 
 ### 설치와 실행
 ```bash
-adb install -r apk/<APK 파일>
+adb install -r apk/김병규_온기_release.apk
 adb shell am start -n app.familynote/.MainActivity
 ```
 
@@ -60,7 +60,7 @@ adb shell am start -n app.familynote/.MainActivity
 - Pleos 차량 서비스가 없는 일반 에뮬레이터에서는 debug 빌드만 주차 상태로 시작한다(UI 확인용). release 빌드는 기어 정보가 없으면 잠긴 화면을 유지한다.
 
 ## APK
-- 위치: `apk/` 폴더의 `<팀명>_온기_release.apk` (서명된 release 빌드)
+- 위치: `apk/` 폴더의 `김병규_온기_release.apk` (서명된 release 빌드)
 
 ## 구조
 ```
