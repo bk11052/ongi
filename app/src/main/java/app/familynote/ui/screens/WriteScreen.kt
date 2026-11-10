@@ -31,8 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.unit.dp
 import app.familynote.data.Note
-import app.familynote.ui.ChipRow
-import app.familynote.ui.FamilyMembers
+import app.familynote.ui.LetterAddress
 import app.familynote.ui.SoftButton
 import app.familynote.ui.theme.Palette
 import app.familynote.ui.theme.Type
@@ -109,8 +108,7 @@ fun WriteScreen(
             )
         }
         Column(Modifier.width(360.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            ChipRow("누가", FamilyMembers, from) { from = it }
-            ChipRow("누구에게", FamilyMembers, to) { to = it }
+            LetterAddress(from = from, to = to, onFrom = { from = it }, onTo = { to = it })
             Text("${text.length} / $MAX_LEN", style = Type.Small)
             SoftButton(if (listening) "그만 듣기" else "말로 쓰기") {
                 when {

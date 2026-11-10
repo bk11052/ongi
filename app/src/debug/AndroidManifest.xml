@@ -8,6 +8,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="app.familynote.debug.ADD_TEXT" />
+                <action android:name="app.familynote.debug.ADD_DRAWING" />
             </intent-filter>
         </receiver>
     </application>

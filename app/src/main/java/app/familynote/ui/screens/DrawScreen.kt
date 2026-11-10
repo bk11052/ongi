@@ -40,10 +40,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import app.familynote.ui.ChipRow
+import app.familynote.ui.LetterAddress
 import app.familynote.ui.ConfirmDialog
 import app.familynote.ui.DrawDraft
-import app.familynote.ui.FamilyMembers
 import app.familynote.ui.SoftButton
 import app.familynote.ui.Stroke
 import app.familynote.ui.StrokeRenderer
@@ -222,8 +221,7 @@ fun DrawScreen(
                     recommit()
                 })
             }
-            ChipRow("누가", FamilyMembers, from) { from = it }
-            ChipRow("누구에게", FamilyMembers, to) { to = it }
+            LetterAddress(from = from, to = to, onFrom = { from = it }, onTo = { to = it })
             Spacer(Modifier.weight(1f))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 SoftButton("취소", Modifier.weight(1f)) {
