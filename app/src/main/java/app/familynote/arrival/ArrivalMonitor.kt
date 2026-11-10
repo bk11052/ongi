@@ -97,7 +97,7 @@ class ArrivalMonitor(
             notifier.showArrival(
                 title = "다녀왔어요",
                 text = listOfNotNull("$who 남긴 쪽지 ${waiting.size}장이 기다리고 있어요", tripLine(trip))
-                    .joinToString(" · "),
+                    .joinToString(". "),
             )
         }
     }

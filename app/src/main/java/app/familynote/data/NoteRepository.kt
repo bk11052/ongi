@@ -28,7 +28,7 @@ class NoteRepository(
 
     val notes: Flow<List<Note>> = dao.observeAll()
 
-    suspend fun saveDrawing(bitmap: Bitmap, from: String, to: String): Note = withContext(io) {
+    suspend fun saveDrawing(bitmap: Bitmap, from: String, to: String, at: Long = System.currentTimeMillis()): Note = withContext(io) {
         val id = UUID.randomUUID().toString()
         noteDir.mkdirs()
         val file = File(noteDir, "$id.png")
@@ -43,7 +43,7 @@ class NoteRepository(
                 text = null,
                 fromMember = from,
                 toMember = to,
-                createdAt = System.currentTimeMillis(),
+                createdAt = at,
                 accentColor = accentOf(bitmap),
             )
             dao.upsert(note)
@@ -59,6 +59,7 @@ class NoteRepository(
         from: String,
         to: String,
         replyToId: String? = null,
+        at: Long = System.currentTimeMillis(),
     ): Note = withContext(io) {
         val note = Note(
             id = UUID.randomUUID().toString(),
@@ -67,7 +68,7 @@ class NoteRepository(
             text = text.trim(),
             fromMember = from,
             toMember = to,
-            createdAt = System.currentTimeMillis(),
+            createdAt = at,
             accentColor = ColorMath.WARM_DEFAULT,
             replyToId = replyToId,
         )

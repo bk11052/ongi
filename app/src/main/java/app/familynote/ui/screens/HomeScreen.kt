@@ -55,6 +55,7 @@ import app.familynote.ui.NOTE_RATIO
 import app.familynote.ui.rememberNoteBitmap
 import app.familynote.ui.theme.Palette
 import app.familynote.ui.theme.Type
+import app.familynote.util.Korean
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -134,11 +135,8 @@ fun HomeScreen(
                             }
                         }
                         Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "${note.fromMember} → ${note.toMember} · ${note.dateLabel()}",
-                                style = Type.Small,
-                                modifier = Modifier.weight(1f),
-                            )
+                            Text("${note.fromMember} → ${note.toMember}", style = Type.Small.copy(color = Palette.Moon))
+                            Text(note.dateLabel(), style = Type.Small, modifier = Modifier.padding(start = 16.dp).weight(1f))
                             // Visible, but quiet: deleting is rare and always asks first.
                             Box(
                                 Modifier
@@ -183,7 +181,7 @@ fun HomeScreen(
                 PaperNote(note, bmp, Modifier.width(420.dp).aspectRatio(NOTE_RATIO), textSizeScale = 0.8f)
             },
             title = "이 쪽지를 삭제하겠습니까?",
-            body = "${note.fromMember} → ${note.toMember} · ${note.dateLabel()}\n삭제한 쪽지는 복구할 수 없습니다.",
+            body = "${Korean.subject(note.fromMember)} ${note.toMember}에게 보낸 ${note.dateLabel()} 쪽지입니다.\n삭제한 쪽지는 복구할 수 없습니다.",
             confirmText = "삭제",
             dismissText = "취소",
             onConfirm = { onDelete(note); pendingDelete = null },

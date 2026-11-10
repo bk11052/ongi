@@ -122,11 +122,10 @@ fun GalleryScreen(
             Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                "${Korean.subject(note.fromMember)} ${note.toMember}에게  ·  ${note.dateLabel()}",
-                style = Type.Label,
-                modifier = Modifier.alpha(if (paused) 1f else 0.75f),
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp), modifier = Modifier.alpha(if (paused) 1f else 0.75f)) {
+                Text("${Korean.subject(note.fromMember)} ${note.toMember}에게", style = Type.Label)
+                Text(note.dateLabel(), style = Type.Label.copy(color = Palette.Dim))
+            }
         }
 
         if (greeting != null && !paused) {
@@ -140,7 +139,7 @@ fun GalleryScreen(
         // Rest mode is otherwise invisible (it changes the climate), so say what it is doing.
         if (resting) {
             Text(
-                "쉼표 모드 켜짐 · 24°C 약풍",
+                "쉼표 모드 켜짐, 24°C 약풍",
                 style = Type.Label.copy(color = Palette.Night),
                 modifier = Modifier
                     .align(Alignment.TopStart)

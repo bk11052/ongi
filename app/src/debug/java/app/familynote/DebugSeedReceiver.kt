@@ -20,6 +20,8 @@ class DebugSeedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val from = intent.getStringExtra("from") ?: "딸"
         val to = intent.getStringExtra("to") ?: "아빠"
+        // Optional "daysAgo" (int) back-dates the note, so demo notes show varied dates.
+        val at = System.currentTimeMillis() - intent.getIntExtra("daysAgo", 0) * 86_400_000L
         val app = context.applicationContext as FamilyNoteApp
         val pending = goAsync()
         app.appScope.launch {
@@ -33,13 +35,13 @@ class DebugSeedReceiver : BroadcastReceiver() {
                         if (bmp == null) {
                             Log.w("DebugSeed", "cannot decode $file")
                         } else {
-                            runCatching { app.repository.saveDrawing(bmp, from, to) }
+                            runCatching { app.repository.saveDrawing(bmp, from, to, at) }
                                 .onFailure { Log.w("DebugSeed", "save failed", it) }
                         }
                         file.delete()
                     }
                     else -> intent.getStringExtra("text")?.let { text ->
-                        runCatching { app.repository.saveText(text, from, to) }
+                        runCatching { app.repository.saveText(text, from, to, at = at) }
                     }
                 }
             } finally {
