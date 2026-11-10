@@ -38,6 +38,7 @@ import app.familynote.data.NoteKind
 import app.familynote.ui.PaperNote
 import app.familynote.ui.SoftButton
 import app.familynote.ui.dateLabel
+import app.familynote.ui.rememberImageRatio
 import app.familynote.ui.rememberNoteBitmap
 import app.familynote.ui.theme.Palette
 import app.familynote.util.Korean
@@ -176,11 +177,8 @@ private fun SlowZoomPaper(note: Note, loadBitmap: suspend (String, Int) -> Bitma
         scale.animateTo(1.05f, tween((HOLD_MS + CROSSFADE_MS).toInt(), easing = LinearEasing))
     }
     val bmp = rememberNoteBitmap(note.imagePath, 1600, loadBitmap)
-    val ratio = if (note.kind == NoteKind.DRAWING && bmp != null && bmp.height > 0) {
-        bmp.width.toFloat() / bmp.height
-    } else {
-        4f / 3f
-    }
+    // From the file header, so the card has its final shape before the picture loads.
+    val ratio = (if (note.kind == NoteKind.DRAWING) rememberImageRatio(note.imagePath) else null) ?: (4f / 3f)
     // Top band is reserved for the pause controls so they never cover the note.
     // Side margins too, so a wide drawing sits on the screen like a print instead of a strip.
     Box(Modifier.fillMaxSize().padding(start = 120.dp, end = 120.dp, top = 112.dp, bottom = 112.dp), contentAlignment = Alignment.Center) {

@@ -136,17 +136,22 @@ fun SoftButton(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(28.dp))
-        Text(text, style = Type.Label.copy(color = fg))
+        Text(text, style = Type.Label.copy(color = fg), maxLines = 1, softWrap = false)
     }
 }
 
 /** Width / height of a stored drawing, read from the file header only (cheap, no decode). */
 @Composable
-fun rememberImageRatio(path: String?): Float? = remember(path) {
-    path ?: return@remember null
-    val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeFile(path, o)
-    if (o.outWidth > 0 && o.outHeight > 0) o.outWidth.toFloat() / o.outHeight else null
+fun rememberImageRatio(path: String?): Float? = remember(path) { path?.let(ImageRatios::get) }
+
+/** Process-wide cache, so each file header is read at most once (saved PNGs never change). */
+private object ImageRatios {
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, Float>()
+    fun get(path: String): Float? = cache[path] ?: run {
+        val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, o)
+        if (o.outWidth > 0 && o.outHeight > 0) (o.outWidth.toFloat() / o.outHeight).also { cache[path] = it } else null
+    }
 }
 
 @Composable
@@ -175,7 +180,7 @@ fun PaperNote(
             note.kind == NoteKind.DRAWING && bitmap != null -> Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = "${note.fromMember}의 그림",
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
             note.kind == NoteKind.TEXT -> Text(

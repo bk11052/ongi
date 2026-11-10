@@ -141,7 +141,15 @@ fun DrawScreen(
                             tick++
                         }
                         current = null
-                        recommit()
+                        // Add just this stroke to the cached image; a full redraw is only
+                        // needed for undo, clear and resize.
+                        val cached = committed
+                        if (cached != null && cached.width == size.width && cached.height == size.height) {
+                            StrokeRenderer.drawStrokes(android.graphics.Canvas(cached), size.width, size.height, listOf(s))
+                            tick++
+                        } else {
+                            recommit()
+                        }
                     }
                 },
         ) {
@@ -178,9 +186,9 @@ fun DrawScreen(
             Modifier.width(360.dp).fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 for (p in Pen.entries) {
-                    SoftButton(p.label, primary = !eraser && p == pen, compact = true, onClick = { pen = p; eraser = false })
+                    SoftButton(p.label, Modifier.weight(1f), primary = !eraser && p == pen, compact = true, onClick = { pen = p; eraser = false })
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
