@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -58,6 +60,8 @@ class MainViewModel(
     private val settings: FamilySettings,
     /** Latest arrival from the app-wide monitor (trip summary for the gallery). */
     val arrival: StateFlow<Arrival?>,
+    /** How often to re-confirm the gear while on screen; null turns it off (unit tests). */
+    private val gearRecheckMs: Long? = GEAR_RECHECK_MS,
 ) : ViewModel() {
 
     /** Who mainly drives this car; notes to them (or the whole family) greet on arrival. */
@@ -229,8 +233,20 @@ class MainViewModel(
     private fun galleryShowing() =
         visible && _screen.value is Screen.Gallery && drive.value == DriveState.PARKED
 
+    private var gearCheck: Job? = null
+
     fun onForegrounded() {
         visible = true
+        // While the screen is in use, confirm the gear now and then so a silent vehicle
+        // service restart can never leave the UI unlocked on a stale "parked".
+        gearCheck?.cancel()
+        val every = gearRecheckMs ?: return
+        gearCheck = viewModelScope.launch {
+            while (true) {
+                delay(every)
+                runCatching { vehicle.recheckGear() }
+            }
+        }
     }
 
     /** Changes the cabin light in small steps so it drifts rather than jumps. */
@@ -243,11 +259,15 @@ class MainViewModel(
                 // Same lock as the restore, and re-checked each step: a late step after the
                 // gallery closed would otherwise change the light again after it was restored.
                 val applied = cabin.locked {
-                    if (galleryShowing()) {
-                        vehicle.setAmbientColor(c)
-                        true
-                    } else {
-                        false
+                    // Not cancellable once started: a step cut off mid-call could still land
+                    // after the restore that follows.
+                    withContext(NonCancellable) {
+                        if (galleryShowing()) {
+                            vehicle.setAmbientColor(c)
+                            true
+                        } else {
+                            false
+                        }
                     }
                 }
                 if (!applied) return@launch
@@ -292,6 +312,7 @@ class MainViewModel(
     /** The app left the screen (Home button, another app) while parked: undo cabin changes. */
     fun onBackgrounded() {
         visible = false
+        gearCheck?.cancel()
         voice.stopListening()
         voice.stopSpeaking()
         if (_screen.value is Screen.Gallery) closeGallery() else leaveCabinAsFound()
@@ -367,6 +388,7 @@ class MainViewModel(
     companion object {
         private const val TAG = "MainViewModel"
         private const val AMBIENT_STEPS = 5
+        const val GEAR_RECHECK_MS = 15_000L
         private const val AMBIENT_FADE_MS = 2000L
         private const val MESSAGE_MS = 4000L
     }

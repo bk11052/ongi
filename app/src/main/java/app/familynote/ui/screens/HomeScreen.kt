@@ -177,7 +177,7 @@ fun HomeScreen(
     pendingDelete?.let { note ->
         ConfirmDialog(
             preview = {
-                val bmp = rememberNoteBitmap(note.imagePath, 480, loadBitmap)
+                val bmp = rememberNoteBitmap(note.imagePath, 520, loadBitmap)
                 PaperNote(note, bmp, Modifier.width(420.dp).aspectRatio(NOTE_RATIO), textSizeScale = 0.8f)
             },
             title = "이 쪽지를 삭제하겠습니까?",

@@ -25,8 +25,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.ImageVector
-import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
@@ -64,7 +64,9 @@ fun Note.dateLabel(): String = dateFormat.format(Date(createdAt))
  * change is also visible on screen (and in recordings). Drawn behind the content so it
  * never tints the notes themselves.
  */
-fun Modifier.ambientGlow(color: Color, strength: Float = 0.42f): Modifier = drawBehind {
+fun Modifier.ambientGlow(color: () -> Color, strength: Float = 0.42f): Modifier = drawBehind {
+    // Read here, in the draw phase, so the animating color redraws without recomposing.
+    val color = color()
     if (color.alpha == 0f) return@drawBehind
     // Lift the color toward white a little: over the dark background a low-alpha warm color
     // otherwise reads as muddy brown rather than light.
@@ -78,10 +80,9 @@ fun Modifier.ambientGlow(color: Color, strength: Float = 0.42f): Modifier = draw
 }
 
 @Composable
-fun animatedGlowColor(argb: Int?): Color {
+fun animatedGlowColor(argb: Int?): State<Color> {
     val target = argb?.let { Color(it) } ?: Color.Transparent
-    val c by animateColorAsState(target, animationSpec = tween(1000), label = "glow")
-    return c
+    return animateColorAsState(target, animationSpec = tween(1000), label = "glow")
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -146,19 +147,7 @@ fun SoftButton(
     }
 }
 
-/** Width / height of a stored drawing, read from the file header only (cheap, no decode). */
-@Composable
-fun rememberImageRatio(path: String?): Float? = remember(path) { path?.let(ImageRatios::get) }
 
-/** Process-wide cache, so each file header is read at most once (saved PNGs never change). */
-private object ImageRatios {
-    private val cache = java.util.concurrent.ConcurrentHashMap<String, Float>()
-    fun get(path: String): Float? = cache[path] ?: run {
-        val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, o)
-        if (o.outWidth > 0 && o.outHeight > 0) (o.outWidth.toFloat() / o.outHeight).also { cache[path] = it } else null
-    }
-}
 
 @Composable
 fun rememberNoteBitmap(path: String?, maxSide: Int, load: suspend (String, Int) -> Bitmap?): Bitmap? {

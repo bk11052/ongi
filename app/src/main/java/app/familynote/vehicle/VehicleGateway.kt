@@ -58,6 +58,12 @@ interface VehicleGateway {
 
     /** Distance and time of the current trip, or null if the car does not report them. */
     suspend fun tripSummary(): TripSummary?
+
+    /**
+     * Asks the car for the gear again. If it does not answer, the state becomes UNKNOWN
+     * (locked): the vehicle service can restart without telling our listener.
+     */
+    suspend fun recheckGear() {}
 }
 
 /** In-memory gateway for unit tests and for devices without the Pleos vehicle service. */

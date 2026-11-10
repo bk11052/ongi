@@ -48,6 +48,18 @@ fun FamilyNoteRoot(vm: MainViewModel) {
     val arrival by vm.arrival.collectAsStateWithLifecycle()
     val waiting = notes.count { !it.seen && FamilySettings.isFor(it, driver) }
     val glow = animatedGlowColor(ambient)
+
+    // One line per screen change; the emulator scenario tests read it (tools/scenarios.sh).
+    LaunchedEffect(drive, screen, draft != null, resting) {
+        // Fixed names (not class names), so they survive code shrinking in the release build.
+        val name = if (drive != DriveState.PARKED) "Driving" else when (screen) {
+            Screen.Home -> "Home"
+            Screen.Draw -> "Draw"
+            is Screen.Write -> "Write"
+            is Screen.Gallery -> "Gallery"
+        }
+        android.util.Log.i("OngiState", "screen=$name draft=${draft != null} resting=$resting")
+    }
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
 
@@ -63,7 +75,7 @@ fun FamilyNoteRoot(vm: MainViewModel) {
 
     BackHandler(enabled = drive == DriveState.PARKED && screen != Screen.Home) { vm.back() }
 
-    Box(Modifier.fillMaxSize().background(Palette.Night).ambientGlow(glow)) {
+    Box(Modifier.fillMaxSize().background(Palette.Night).ambientGlow({ glow.value })) {
         AnimatedContent(
             targetState = view,
             transitionSpec = {

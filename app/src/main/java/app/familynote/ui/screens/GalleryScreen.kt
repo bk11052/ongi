@@ -94,6 +94,10 @@ fun GalleryScreen(
     LaunchedEffect(Unit) { entry.animateTo(1f, tween(ENTRY_FADE_MS)) }
 
     LaunchedEffect(note.id) { onNoteShown(note) }
+    // Decode the next drawing while this one is shown, so the cross-fade never shows blank paper.
+    LaunchedEffect(safeIndex, shown.size) {
+        shown.getOrNull((safeIndex + 1) % shown.size)?.imagePath?.let { loadBitmap(it, 1600) }
+    }
     LaunchedEffect(safeIndex, paused, shown.size) {
         if (paused || shown.size < 2) return@LaunchedEffect
         delay(HOLD_MS)
@@ -103,7 +107,7 @@ fun GalleryScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .alpha(entry.value)
+            .graphicsLayer { alpha = entry.value }
             .pointerInput(Unit) {
                 detectTapGestures {
                     paused = !paused

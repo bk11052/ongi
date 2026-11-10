@@ -62,7 +62,7 @@ class MainViewModelTest {
     private fun TestScope.vm(notes: List<Note>, drive: DriveState): Pair<MainViewModel, FakeVehicleGateway> {
         val car = FakeVehicleGateway(drive)
         val repo = NoteRepository(FakeDao(notes), File("build/tmp-test"), dispatcher)
-        val vm = MainViewModel(repo, car, FakeVoice(), Cabin(this), FamilySettings("아빠"), MutableStateFlow<Arrival?>(null))
+        val vm = MainViewModel(repo, car, FakeVoice(), Cabin(this), FamilySettings("아빠"), MutableStateFlow<Arrival?>(null), gearRecheckMs = null)
         vm.onForegrounded()
         return vm to car
     }

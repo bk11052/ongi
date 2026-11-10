@@ -28,6 +28,9 @@ class ArrivalService : Service() {
         }
         app.vehicle.start()
         app.arrivalMonitor.start()
+        // The process may come back without the screen (crash restart, head unit reboot):
+        // put back any light or climate change left over, unless the screen is in use.
+        app.cabin.run { if (!app.appVisible) runCatching { app.vehicle.recoverPendingCabin() } }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

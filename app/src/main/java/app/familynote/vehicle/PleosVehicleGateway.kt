@@ -89,7 +89,12 @@ class PleosVehicleGateway(
         _drive.value = DriveState.UNKNOWN
         listenerReported = false
         ready.value = false
-        vehicle.initialize()
+        // A throw here (e.g. a vehicle service version mismatch) must not crash the app or
+        // the arrival service: stay UNKNOWN (locked) and let a later start() try again.
+        if (runCatching { vehicle.initialize() }.onFailure { Log.w(TAG, "initialize failed", it) }.isFailure) {
+            started = false
+            return
+        }
         startJob = scope.launch {
             // Subscribe first so a gear change during the initial read is not missed.
             var registered = false
@@ -114,9 +119,14 @@ class PleosVehicleGateway(
             if (!registered || (gear == null && !listenerReported)) {
                 Log.w(TAG, "vehicle service not answering; staying UNKNOWN until the next start()")
                 _drive.value = DriveState.UNKNOWN
-                // Allow a later start() (e.g. when the screen comes back) to try again.
+                // Allow a later start() (e.g. when the screen comes back) to try again, and try
+                // again by ourselves in a minute so background arrival detection recovers too.
                 started = false
                 runCatching { vehicle.release() }
+                scope.launch {
+                    delay(60_000)
+                    start()
+                }
                 return@launch
             } else if (gear != null && !listenerReported) {
                 _drive.value = gear.toDriveState()
@@ -154,16 +164,23 @@ class PleosVehicleGateway(
     override suspend fun setAmbientColor(argb: Int): Boolean {
         val color = argb or OPAQUE
         _ambient.value = color
-        val areas = ambientAreas
-        if (areas.isEmpty()) return false
-        if (!prefs.contains(KEY_AMBIENT)) {
+        if (ambientAreas.isEmpty()) return false
+        val areas: List<SeatArea>
+        val pending = prefs.getString(KEY_AMBIENT, null)
+        if (pending != null) {
+            // Already changed during this visit: keep to the areas whose originals we saved.
+            areas = SavedAmbient.decode(pending).mapNotNull { it.toArea() }
+        } else {
             // Remember the cabin's own setting once (on disk), so it can always be put back.
-            val saved = areas.map { area ->
+            // An area is changed only if both its color and its switch could be read.
+            val saved = ambientAreas.mapNotNull { area ->
                 val c = call<Int> { ok, fail -> vehicle.getLight().getAmbientLightBrightnessColor(area, ok, fail) }
                 val s = call<LightSwitch> { ok, fail -> vehicle.getLight().getAmbientLightSwitch(area, ok, fail) }
-                SavedAmbient(area.values.map { it.name }, c, s?.name)
+                if (c != null && s != null) SavedAmbient(area.values.map { it.name }, c, s.name) else null
             }
+            if (saved.isEmpty()) return false
             prefs.edit().putString(KEY_AMBIENT, SavedAmbient.encode(saved)).commit()
+            areas = saved.mapNotNull { it.toArea() }
             for (area in areas) {
                 call<LightSwitch> { ok, fail ->
                     vehicle.getLight().setAmbientLightSwitch(area, LightSwitch.ON, { _, v -> ok(v) }, fail)
@@ -215,15 +232,39 @@ class PleosVehicleGateway(
 
     // ---- Rest mode (climate) ----------------------------------------------------------
 
+    /**
+     * The area the fan is controlled by, with its range. On Pleos the fan is not per seat like
+     * the temperature: it uses its own area, so ask the car instead of assuming the driver's.
+     */
+    private suspend fun fanArea(): Pair<SeatArea, AreaBounds<Int>>? {
+        val bounds = call<Map<SeatArea, AreaBounds<Int>>> { ok, fail ->
+            vehicle.getHVAC().checkHvacFanSpeedCapabilities({ b: Map<SeatArea, AreaBounds<Int>> -> ok(b) }, fail)
+        } ?: return null
+        val entry = bounds.entries.firstOrNull { (area, _) -> SeatValue.ROW_1_LEFT in area.values }
+            ?: bounds.entries.firstOrNull()
+            ?: return null
+        return entry.key to entry.value
+    }
+
     override suspend fun enterRest(): RestSnapshot {
         val hvac = vehicle.getHVAC()
-        val temp = call<Float> { ok, fail -> hvac.getHvacTemperature(driver, TemperatureUnit.CELSIUS, ok, fail) }
-        val fan = call<Int> { ok, fail -> hvac.getHvacFanSpeed(driver, ok, fail) }
+        // If an earlier rest could not be undone, its saved originals are still the truth:
+        // reading now would only see our own 24°C and lose the driver's setting for good.
+        val previous = prefs.getString(KEY_REST, null)?.split('|')
+        val temp: Float?
+        val fan: Int?
+        if (previous != null && previous.size == 2) {
+            temp = previous[0].toFloatOrNull()
+            fan = previous[1].toIntOrNull()
+        } else {
+            temp = call<Float> { ok, fail -> hvac.getHvacTemperature(driver, TemperatureUnit.CELSIUS, ok, fail) }
+            fan = fanArea()?.let { (area, _) -> call<Int> { ok, fail -> hvac.getHvacFanSpeed(area, ok, fail) } }
+            // Save before changing anything, so a crash in between can still be undone.
+            prefs.edit()
+                .putString(KEY_REST, "${temp ?: ""}|${fan ?: ""}")
+                .commit()
+        }
         val snapshot = RestSnapshot(temperatureC = temp, fanSpeed = fan)
-        // Save before changing anything, so a crash in between can still be undone.
-        prefs.edit()
-            .putString(KEY_REST, "${temp ?: ""}|${fan ?: ""}")
-            .commit()
 
         // Change a setting only if we could read it first, so it can always be restored.
         if (temp != null) {
@@ -232,14 +273,9 @@ class PleosVehicleGateway(
             }
         }
         if (fan != null) {
-            val bounds = call<Map<SeatArea, AreaBounds<Int>>> { ok, fail ->
-                hvac.checkHvacFanSpeedCapabilities({ b: Map<SeatArea, AreaBounds<Int>> -> ok(b) }, fail)
-            }
-            val driverBounds = bounds?.entries
-                ?.firstOrNull { (area, _) -> SeatValue.ROW_1_LEFT in area.values }?.value
-            val quiet = driverBounds?.let { (it.minValue + 1).coerceAtMost(it.maxValue) }
-            if (quiet != null && fan > quiet) {
-                call<Int> { ok, fail -> hvac.setHvacFanSpeed(driver, quiet, { _, v -> ok(v) }, fail) }
+            fanArea()?.let { (area, b) ->
+                val quiet = (b.minValue + 1).coerceAtMost(b.maxValue)
+                if (fan > quiet) call<Int> { ok, fail -> hvac.setHvacFanSpeed(area, quiet, { _, v -> ok(v) }, fail) }
             }
         }
         return snapshot
@@ -253,7 +289,8 @@ class PleosVehicleGateway(
             if (r == null) allOk = false
         }
         snapshot.fanSpeed?.let { f ->
-            val r = call<Int> { ok, fail -> hvac.setHvacFanSpeed(driver, f, { _, v -> ok(v) }, fail) }
+            val area = fanArea()?.first
+            val r = area?.let { a -> call<Int> { ok, fail -> hvac.setHvacFanSpeed(a, f, { _, v -> ok(v) }, fail) } }
             if (r == null) allOk = false
         }
         if (allOk) prefs.edit().remove(KEY_REST).commit() else Log.w(TAG, "climate restore incomplete; will retry")
@@ -272,6 +309,12 @@ class PleosVehicleGateway(
     }
 
     // ---- Trip -------------------------------------------------------------------------
+
+    override suspend fun recheckGear() {
+        if (!ready.value) return
+        val gear = call<VehicleGear> { ok, fail -> vehicle.getGear().getCurrentGearSelectionState(ok, fail) }
+        _drive.value = gear?.toDriveState() ?: DriveState.UNKNOWN
+    }
 
     override suspend fun tripSummary(): TripSummary? {
         val odo = vehicle.getOdometer()
