@@ -21,15 +21,15 @@ fun DrivingScreen(unseen: Int, connecting: Boolean, hasDraft: Boolean = false) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (connecting) {
-                Text("잠시만요", style = Type.Title)
+                Text("연결 중…", style = Type.Title)
             } else {
                 Text("운전에 집중하세요", style = Type.Title)
                 Text(
-                    if (unseen > 0) "새 쪽지 ${unseen}장은 도착하면 보여드릴게요" else "도착하면 다시 만나요",
+                    if (unseen > 0) "새 쪽지 ${unseen}장은 주차 후에 표시됩니다" else "주차 후에 사용할 수 있습니다",
                     style = Type.Caption,
                     textAlign = TextAlign.Center,
                 )
-                if (hasDraft) Text("그리던 그림은 그대로 남겨 둘게요", style = Type.Small, textAlign = TextAlign.Center)
+                if (hasDraft) Text("그리던 그림은 저장해 두었습니다", style = Type.Small, textAlign = TextAlign.Center)
             }
         }
     }

@@ -62,7 +62,7 @@ fun WriteScreen(
         // Speech is appended after whatever was already typed.
         val base = text.trimEnd().let { if (it.isEmpty()) it else "$it " }
         listening = true
-        hint = "듣고 있어요…"
+        hint = "듣는 중…"
         onListen(
             { heard, final ->
                 text = (base + heard).take(MAX_LEN)
@@ -79,7 +79,7 @@ fun WriteScreen(
     }
 
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) startListening() else hint = "마이크 권한이 있어야 말로 쓸 수 있어요"
+        if (granted) startListening() else hint = "받아쓰기를 사용하려면 마이크 권한이 필요합니다"
     }
 
     DisposableEffect(Unit) { onDispose { onStopListening() } }
@@ -95,7 +95,7 @@ fun WriteScreen(
         ) {
             if (text.isEmpty()) {
                 Text(
-                    if (replyTo != null) "${replyTo.fromMember}에게 답장을 써 주세요" else "마음을 적어 주세요",
+                    if (replyTo != null) "${replyTo.fromMember}에게 답장" else "내용",
                     style = Type.NoteBody.copy(color = Palette.PaperHint),
                 )
             }
@@ -110,7 +110,7 @@ fun WriteScreen(
         Column(Modifier.width(360.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             LetterAddress(from = from, to = to, onFrom = { from = it }, onTo = { to = it })
             Text("${text.length} / $MAX_LEN", style = Type.Small)
-            SoftButton(if (listening) "그만 듣기" else "말로 쓰기") {
+            SoftButton(if (listening) "받아쓰기 중지" else "받아쓰기") {
                 when {
                     listening -> {
                         onStopListening()
@@ -126,7 +126,7 @@ fun WriteScreen(
             Spacer(Modifier.weight(1f))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 SoftButton("취소", Modifier.weight(1f), onClick = onCancel)
-                SoftButton("남기기", Modifier.weight(1f), primary = true, enabled = text.isNotBlank() && !saving) {
+                SoftButton("보내기", Modifier.weight(1f), primary = true, enabled = text.isNotBlank() && !saving) {
                     saving = true
                     onStopListening()
                     onSave(text, from, to) { ok -> if (!ok) saving = false }

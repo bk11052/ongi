@@ -305,9 +305,9 @@ class MainViewModel(
             if (ok) {
                 _draft.value = null
                 back()
-                showMessage("${to}에게 그림을 남겼어요")
+                showMessage("${to}에게 그림을 보냈습니다")
             } else {
-                showMessage("그림을 저장하지 못했어요. 다시 한 번 눌러 주세요.")
+                showMessage("그림을 저장하지 못했습니다. 다시 시도하세요.")
             }
             onDone(ok)
         }
@@ -321,9 +321,9 @@ class MainViewModel(
                 .isSuccess
             if (ok) {
                 back()
-                showMessage(if (replyToId != null) "${to}에게 답장을 남겼어요" else "${to}에게 쪽지를 남겼어요")
+                showMessage(if (replyToId != null) "${to}에게 답장을 보냈습니다" else "${to}에게 쪽지를 보냈습니다")
             } else {
-                showMessage("쪽지를 저장하지 못했어요. 다시 한 번 눌러 주세요.")
+                showMessage("쪽지를 저장하지 못했습니다. 다시 시도하세요.")
             }
             onDone(ok)
         }

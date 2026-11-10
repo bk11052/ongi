@@ -55,7 +55,7 @@ class AndroidArrivalNotifier(private val context: Context) : ArrivalNotifier {
     fun watchingNotification() = NotificationCompat.Builder(context, CHANNEL_WATCH)
         .setSmallIcon(R.drawable.ic_notification)
         .setContentTitle("온기")
-        .setContentText("도착하면 가족의 쪽지를 보여드릴게요")
+        .setContentText("주차하면 가족의 쪽지를 표시합니다")
         .setPriority(NotificationCompat.PRIORITY_MIN)
         .setOngoing(true)
         .build()

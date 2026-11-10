@@ -38,7 +38,7 @@ import app.familynote.data.NoteKind
 import app.familynote.ui.PaperNote
 import app.familynote.ui.SoftButton
 import app.familynote.ui.dateLabel
-import app.familynote.ui.rememberImageRatio
+import app.familynote.ui.NOTE_RATIO
 import app.familynote.ui.rememberNoteBitmap
 import app.familynote.ui.theme.Palette
 import app.familynote.util.Korean
@@ -117,11 +117,10 @@ fun GalleryScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                "${if (note.id in newIds) "새 쪽지" else "다시 보는 쪽지"}  ·  ${Korean.subject(note.fromMember)} ${note.toMember}에게  ·  ${note.dateLabel()}",
+                "${Korean.subject(note.fromMember)} ${note.toMember}에게  ·  ${note.dateLabel()}",
                 style = Type.Label,
                 modifier = Modifier.alpha(if (paused) 1f else 0.75f),
             )
-            if (!paused) Text("화면을 누르면 멈추고 읽어 드려요", style = Type.Small, modifier = Modifier.alpha(0.85f))
         }
 
         if (greeting != null && !paused) {
@@ -135,7 +134,7 @@ fun GalleryScreen(
         // Rest mode is otherwise invisible (it changes the climate), so say what it is doing.
         if (resting) {
             Text(
-                "쉼표 모드 · 따뜻하고 조용한 바람",
+                "쉼표 모드 켜짐 · 24°C 약풍",
                 style = Type.Label.copy(color = Palette.Night),
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -153,9 +152,9 @@ fun GalleryScreen(
             modifier = Modifier.align(Alignment.TopEnd).padding(28.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SoftButton("다시 듣기", onClick = { onRead(note) })
-                SoftButton("답장하기", onClick = { onReply(note) })
-                SoftButton(if (resting) "쉼표 모드 끄기" else "쉼표 모드", primary = resting, onClick = onToggleRest)
+                SoftButton("읽어 주기", onClick = { onRead(note) })
+                SoftButton("답장", onClick = { onReply(note) })
+                SoftButton("쉼표 모드", primary = resting, onClick = onToggleRest)
                 SoftButton("닫기", onClick = onClose)
             }
         }
@@ -177,8 +176,7 @@ private fun SlowZoomPaper(note: Note, loadBitmap: suspend (String, Int) -> Bitma
         scale.animateTo(1.05f, tween((HOLD_MS + CROSSFADE_MS).toInt(), easing = LinearEasing))
     }
     val bmp = rememberNoteBitmap(note.imagePath, 1600, loadBitmap)
-    // From the file header, so the card has its final shape before the picture loads.
-    val ratio = (if (note.kind == NoteKind.DRAWING) rememberImageRatio(note.imagePath) else null) ?: (4f / 3f)
+    val ratio = NOTE_RATIO
     // Top band is reserved for the pause controls so they never cover the note.
     // Side margins too, so a wide drawing sits on the screen like a print instead of a strip.
     Box(Modifier.fillMaxSize().padding(start = 120.dp, end = 120.dp, top = 112.dp, bottom = 112.dp), contentAlignment = Alignment.Center) {

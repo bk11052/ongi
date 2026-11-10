@@ -41,6 +41,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.familynote.ui.LetterAddress
+import app.familynote.ui.NOTE_RATIO
+import androidx.compose.foundation.layout.aspectRatio
 import app.familynote.ui.ConfirmDialog
 import app.familynote.ui.DrawDraft
 import app.familynote.ui.Pen
@@ -110,11 +112,12 @@ fun DrawScreen(
     }
 
     Row(Modifier.fillMaxSize().padding(28.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+        // The page has the same shape as every note card, so a drawing is never cropped or padded.
+        Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
         Box(
             Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .clip(RoundedCornerShape(8.dp))
+                .aspectRatio(NOTE_RATIO)
+                .clip(RoundedCornerShape(12.dp))
                 .onSizeChanged {
                     canvasSize = it
                     committed = null
@@ -169,17 +172,18 @@ fun DrawScreen(
             }
             if (strokes.isEmpty()) {
                 Text(
-                    "여기에 그려 주세요",
+                    "여기에 그리기",
                     style = Type.Caption.copy(color = Palette.PaperHint, fontSize = Type.Caption.fontSize * 1.4f),
                     modifier = Modifier.align(Alignment.Center),
                 )
             } else if (draft != null && draft.strokes.size == strokes.size) {
                 Text(
-                    "그리던 그림을 그대로 남겨 뒀어요",
+                    "그리던 그림을 불러왔습니다",
                     style = Type.Small.copy(color = Palette.PaperHint),
                     modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp),
                 )
             }
+        }
         }
 
         Column(
@@ -226,11 +230,11 @@ fun DrawScreen(
                 SoftButton("지우개", Modifier.width(132.dp), primary = eraser, onClick = { eraser = !eraser })
             }
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SoftButton("되돌리기", enabled = strokes.isNotEmpty() && current == null, onClick = {
+                SoftButton("실행 취소", enabled = strokes.isNotEmpty() && current == null, onClick = {
                     strokes.removeLastOrNull()
                     recommit()
                 })
-                SoftButton("모두 지우기", enabled = strokes.isNotEmpty() && current == null, onClick = {
+                SoftButton("전체 지우기", enabled = strokes.isNotEmpty() && current == null, onClick = {
                     strokes.clear()
                     recommit()
                 })
@@ -242,7 +246,7 @@ fun DrawScreen(
                     if (strokes.isEmpty()) onCancel() else confirmDiscard = true
                 }
                 SoftButton(
-                    "남기기",
+                    "보내기",
                     Modifier.weight(1f),
                     primary = true,
                     enabled = strokes.isNotEmpty() && !saving && canvasSize.width > 0,
@@ -262,9 +266,9 @@ fun DrawScreen(
 
     if (confirmDiscard) {
         ConfirmDialog(
-            title = "그리던 그림을 버릴까요?",
-            body = "버린 그림은 되돌릴 수 없어요.",
-            confirmText = "버리기",
+            title = "그림을 삭제하겠습니까?",
+            body = "삭제한 그림은 복구할 수 없습니다.",
+            confirmText = "삭제",
             dismissText = "계속 그리기",
             onConfirm = {
                 done = true

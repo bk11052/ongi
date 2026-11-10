@@ -47,6 +47,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** Every note, drawn or written, is shown on a card of this one shape (and drawn on a canvas of it). */
+const val NOTE_RATIO = 3f / 2f
+
 /** Family members offered as sender/recipient. Kept simple on purpose. */
 val FamilyMembers = listOf("아빠", "엄마", "딸", "아들", "우리 가족")
 
@@ -131,7 +134,7 @@ fun SoftButton(
             .clip(RoundedCornerShape(28.dp))
             .background(bg)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = if (compact) 20.dp else 28.dp, vertical = if (compact) 14.dp else 18.dp),
+            .padding(horizontal = if (compact) 10.dp else 28.dp, vertical = if (compact) 14.dp else 18.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -172,7 +175,7 @@ fun PaperNote(
 ) {
     Box(
         modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(Palette.Paper),
         contentAlignment = Alignment.Center,
     ) {
@@ -180,7 +183,7 @@ fun PaperNote(
             note.kind == NoteKind.DRAWING && bitmap != null -> Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = "${note.fromMember}의 그림",
-                contentScale = ContentScale.Fit,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
             note.kind == NoteKind.TEXT -> Text(
@@ -193,7 +196,7 @@ fun PaperNote(
                     lineBreak = LineBreak(LineBreak.Strategy.Balanced, LineBreak.Strictness.Strict, LineBreak.WordBreak.Phrase),
                 ),
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.padding(32.dp),
             )
         }
     }

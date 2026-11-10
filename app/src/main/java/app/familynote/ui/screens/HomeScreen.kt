@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
-import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -38,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import app.familynote.data.FamilySettings
@@ -51,7 +50,7 @@ import app.familynote.ui.NewDot
 import app.familynote.ui.PaperNote
 import app.familynote.ui.SoftButton
 import app.familynote.ui.dateLabel
-import app.familynote.ui.rememberImageRatio
+import app.familynote.ui.NOTE_RATIO
 import app.familynote.ui.rememberNoteBitmap
 import app.familynote.ui.theme.Palette
 import app.familynote.ui.theme.Type
@@ -79,7 +78,7 @@ fun HomeScreen(
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 32.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                Text("우리 쪽지함", style = Type.Title)
+                Text("쪽지", style = Type.Title)
                 if (waiting > 0) {
                     Text(
                         "새 쪽지 ${waiting}장",
@@ -96,31 +95,26 @@ fun HomeScreen(
                 SoftButton(driver, icon = Icons.Outlined.Person, onClick = { choosingDriver = true })
                 Spacer(Modifier.width(10.dp))
                 SoftButton(if (hasDraft) "이어 그리기" else "그리기", icon = Icons.Outlined.Create, onClick = onDraw)
-                SoftButton("쪽지 쓰기", icon = Icons.Outlined.Email, onClick = onWrite)
-                SoftButton("펼쳐 보기", icon = Icons.Outlined.PlayArrow, primary = true, enabled = notes.isNotEmpty(), onClick = { onGallery(null) })
+                SoftButton("쓰기", icon = Icons.Outlined.Email, onClick = onWrite)
+                SoftButton("슬라이드쇼", icon = Icons.Outlined.PlayArrow, primary = true, enabled = notes.isNotEmpty(), onClick = { onGallery(null) })
             }
         }
         Spacer(Modifier.height(28.dp))
         if (notes.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "아직 쪽지가 없어요.\n다음 나들이 때 아이와 함께 첫 그림을 남겨 보세요.",
+                    "쪽지 없음\n그리기나 쓰기로 첫 쪽지를 보내 보세요.",
                     style = Type.Caption,
                 )
             }
         } else {
-            // Staggered, so every drawing keeps its own shape: no empty paper above or below.
-            LazyVerticalStaggeredGrid(
-                columns = StaggeredGridCells.Adaptive(minSize = 460.dp),
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 420.dp),
                 horizontalArrangement = Arrangement.spacedBy(28.dp),
-                verticalItemSpacing = 28.dp,
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 items(notes, key = { it.id }) { note ->
-                    // A slight, stable tilt per note makes the grid feel like pinned paper.
-                    val tilt = ((note.id.hashCode() % 5) - 2) * 0.6f
                     val bmp = rememberNoteBitmap(note.imagePath, 520, loadBitmap)
-                    val ratio = (if (note.kind == NoteKind.DRAWING) rememberImageRatio(note.imagePath) else null)
-                        ?.coerceIn(0.75f, 2.4f) ?: (4f / 3f)
                     Column(
                         Modifier.combinedClickable(
                             onClick = { onGallery(note.id) },
@@ -131,7 +125,7 @@ fun HomeScreen(
                             PaperNote(
                                 note,
                                 bmp,
-                                Modifier.fillMaxWidth().aspectRatio(ratio).rotate(tilt).shadow(6.dp, RoundedCornerShape(6.dp)),
+                                Modifier.fillMaxWidth().aspectRatio(NOTE_RATIO).shadow(6.dp, RoundedCornerShape(12.dp)),
                                 textSizeScale = 1.05f,
                             )
                             if (!note.seen && FamilySettings.isFor(note, driver)) {
@@ -170,8 +164,8 @@ fun HomeScreen(
                     .padding(40.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Text("운전석에 앉는 사람", style = Type.Label)
-                Text("도착하면 이 사람에게 온 쪽지를 먼저 펼쳐 드려요", style = Type.Small)
+                Text("운전자", style = Type.Label)
+                Text("주차하면 운전자에게 온 쪽지를 먼저 표시합니다", style = Type.Small)
                 ChipRow("", FamilyMembers.filter { it != FamilySettings.WHOLE_FAMILY }, driver) {
                     onDriverChange(it)
                     choosingDriver = false
@@ -185,14 +179,12 @@ fun HomeScreen(
         ConfirmDialog(
             preview = {
                 val bmp = rememberNoteBitmap(note.imagePath, 480, loadBitmap)
-                val ratio = (if (note.kind == NoteKind.DRAWING) rememberImageRatio(note.imagePath) else null)
-                    ?.coerceIn(0.75f, 2.4f) ?: (4f / 3f)
-                PaperNote(note, bmp, Modifier.width(420.dp).aspectRatio(ratio), textSizeScale = 0.8f)
+                PaperNote(note, bmp, Modifier.width(420.dp).aspectRatio(NOTE_RATIO), textSizeScale = 0.8f)
             },
-            title = "이 쪽지를 지울까요?",
-            body = "${note.fromMember} → ${note.toMember} · ${note.dateLabel()}\n지운 쪽지는 되돌릴 수 없어요.",
-            confirmText = "지우기",
-            dismissText = "그대로 두기",
+            title = "이 쪽지를 삭제하겠습니까?",
+            body = "${note.fromMember} → ${note.toMember} · ${note.dateLabel()}\n삭제한 쪽지는 복구할 수 없습니다.",
+            confirmText = "삭제",
+            dismissText = "취소",
             onConfirm = { onDelete(note); pendingDelete = null },
             onDismiss = { pendingDelete = null },
         )

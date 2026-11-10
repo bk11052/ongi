@@ -22,9 +22,9 @@ object Palette {
     val Dim = Color(0xFFA7A6B0)
     /** Hint text on paper: readable, but clearly not ink. */
     val PaperHint = Color(0xFFA89A84)
+    /** Hairline separators on dark surfaces. */
+    val Line = Color(0xFF2C3042)
 }
-
-val Handwriting = FontFamily(Font(R.font.gaegu_regular))
 
 /** Clean, rounded Korean sans for everything that is not a note. */
 val UiFont = FontFamily(
@@ -34,9 +34,9 @@ val UiFont = FontFamily(
 )
 
 object Type {
-    // UI text is plain and calm; the handwriting font is kept for the notes themselves.
+    // One typeface everywhere, as on Apple and Windows: notes are set in it too.
     val Title = TextStyle(fontFamily = UiFont, fontSize = 40.sp, fontWeight = FontWeight.SemiBold, color = Palette.Moon)
-    val NoteBody = TextStyle(fontFamily = Handwriting, fontSize = 38.sp, lineHeight = 50.sp, color = Palette.Ink)
+    val NoteBody = TextStyle(fontFamily = UiFont, fontWeight = FontWeight.Medium, fontSize = 34.sp, lineHeight = 48.sp, color = Palette.Ink)
     val Caption = TextStyle(fontFamily = UiFont, fontSize = 28.sp, color = Palette.Moon)
     val Label = TextStyle(fontFamily = UiFont, fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Palette.Moon)
     val Small = TextStyle(fontFamily = UiFont, fontSize = 22.sp, color = Palette.Dim)

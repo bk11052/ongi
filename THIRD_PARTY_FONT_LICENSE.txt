@@ -1,6 +1,5 @@
 Fonts bundled in app/src/main/res/font, all under the SIL Open Font License, Version 1.1:
 
-- gaegu_regular.ttf (Gaegu): Copyright 2018 The Gaegu Project Authors (https://fonts.google.com/specimen/Gaegu)
 - pretendard_regular.otf, pretendard_medium.otf, pretendard_semibold.otf (Pretendard):
   Copyright (c) 2023 Kil Hyung-jin (https://github.com/orioncactus/pretendard)
 
