@@ -18,7 +18,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.vector.ImageVector
+import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -30,6 +34,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -109,6 +115,9 @@ fun SoftButton(
     modifier: Modifier = Modifier,
     primary: Boolean = false,
     enabled: Boolean = true,
+    /** Smaller padding, for tool pickers. */
+    compact: Boolean = false,
+    icon: ImageVector? = null,
     onClick: () -> Unit,
 ) {
     val bg = when {
@@ -116,19 +125,28 @@ fun SoftButton(
         primary -> Palette.Amber
         else -> Palette.NightRaised
     }
-    Box(
+    val fg = if (primary && enabled) Palette.Night else Palette.Moon
+    Row(
         modifier
             .clip(RoundedCornerShape(28.dp))
             .background(bg)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 28.dp, vertical = 18.dp),
-        contentAlignment = Alignment.Center,
+            .padding(horizontal = if (compact) 20.dp else 28.dp, vertical = if (compact) 14.dp else 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text,
-            style = Type.Label.copy(color = if (primary && enabled) Palette.Night else Palette.Moon),
-        )
+        if (icon != null) Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(28.dp))
+        Text(text, style = Type.Label.copy(color = fg))
     }
+}
+
+/** Width / height of a stored drawing, read from the file header only (cheap, no decode). */
+@Composable
+fun rememberImageRatio(path: String?): Float? = remember(path) {
+    path ?: return@remember null
+    val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(path, o)
+    if (o.outWidth > 0 && o.outHeight > 0) o.outWidth.toFloat() / o.outHeight else null
 }
 
 @Composable
@@ -157,7 +175,7 @@ fun PaperNote(
             note.kind == NoteKind.DRAWING && bitmap != null -> Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = "${note.fromMember}의 그림",
-                contentScale = ContentScale.Fit,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
             note.kind == NoteKind.TEXT -> Text(
@@ -165,6 +183,9 @@ fun PaperNote(
                 style = Type.NoteBody.copy(
                     fontSize = Type.NoteBody.fontSize * textSizeScale,
                     lineHeight = Type.NoteBody.lineHeight * textSizeScale,
+                    textAlign = TextAlign.Center,
+                    // Break between words, never inside one ("놀아/요").
+                    lineBreak = LineBreak(LineBreak.Strategy.Balanced, LineBreak.Strictness.Strict, LineBreak.WordBreak.Phrase),
                 ),
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(24.dp),

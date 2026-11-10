@@ -1,12 +1,10 @@
-Copyright (c) 2010, NHN Corporation (http://www.nhncorp.com),
-with Reserved Font Name Nanum, Naver Nanum, NanumGothic, Naver 
-NanumGothic, NanumMyeongjo, Naver NanumMyeongjo, NanumBrush, Naver
-NanumBrush, NanumPen, Naver NanumPen.
+Fonts bundled in app/src/main/res/font, all under the SIL Open Font License, Version 1.1:
 
-This Font Software is licensed under the SIL Open Font License, Version 1.1.
-This license is copied below, and is also available with a FAQ at:
-http://scripts.sil.org/OFL
+- gaegu_regular.ttf (Gaegu): Copyright 2018 The Gaegu Project Authors (https://fonts.google.com/specimen/Gaegu)
+- pretendard_regular.otf, pretendard_medium.otf, pretendard_semibold.otf (Pretendard):
+  Copyright (c) 2023 Kil Hyung-jin (https://github.com/orioncactus/pretendard)
 
+This license is copied below, and is also available with a FAQ at: https://openfontlicense.org
 
 -----------------------------------------------------------
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007

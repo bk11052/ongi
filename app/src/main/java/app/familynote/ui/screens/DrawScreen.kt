@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import app.familynote.ui.LetterAddress
 import app.familynote.ui.ConfirmDialog
 import app.familynote.ui.DrawDraft
+import app.familynote.ui.Pen
 import app.familynote.ui.SoftButton
 import app.familynote.ui.Stroke
 import app.familynote.ui.StrokeRenderer
@@ -78,6 +79,7 @@ fun DrawScreen(
     var color by remember { mutableIntStateOf(CrayonColors[0]) }
     var width by remember { mutableStateOf(BrushWidths[1]) }
     var eraser by remember { mutableStateOf(false) }
+    var pen by remember { mutableStateOf(Pen.CRAYON) }
     var from by remember { mutableStateOf(draft?.from ?: "딸") }
     var to by remember { mutableStateOf(draft?.to ?: "아빠") }
     var confirmDiscard by remember { mutableStateOf(false) }
@@ -124,7 +126,7 @@ fun DrawScreen(
                     awaitEachGesture {
                         val down = awaitFirstDown()
                         if (size.width == 0 || size.height == 0) return@awaitEachGesture
-                        val s = Stroke(color, width, eraser)
+                        val s = Stroke(color, width, eraser, pen)
                         s.add(down.position.x / size.width, down.position.y / size.height)
                         down.consume()
                         current = s
@@ -176,7 +178,11 @@ fun DrawScreen(
             Modifier.width(360.dp).fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Text("크레파스", style = Type.Small)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                for (p in Pen.entries) {
+                    SoftButton(p.label, primary = !eraser && p == pen, compact = true, onClick = { pen = p; eraser = false })
+                }
+            }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 for (row in CrayonColors.chunked(4)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {

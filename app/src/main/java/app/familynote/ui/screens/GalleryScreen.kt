@@ -182,16 +182,17 @@ private fun SlowZoomPaper(note: Note, loadBitmap: suspend (String, Int) -> Bitma
         4f / 3f
     }
     // Top band is reserved for the pause controls so they never cover the note.
-    Box(Modifier.fillMaxSize().padding(top = 112.dp, bottom = 112.dp), contentAlignment = Alignment.Center) {
+    // Side margins too, so a wide drawing sits on the screen like a print instead of a strip.
+    Box(Modifier.fillMaxSize().padding(start = 120.dp, end = 120.dp, top = 112.dp, bottom = 112.dp), contentAlignment = Alignment.Center) {
         PaperNote(
             note,
             bmp,
             Modifier
-                .fillMaxHeight()
-                .aspectRatio(ratio)
+                // No fillMaxHeight: the card takes the largest size of this shape that fits.
+                .aspectRatio(ratio, matchHeightConstraintsFirst = true)
                 .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
                 .shadow(24.dp),
-            textSizeScale = 1.8f,
+            textSizeScale = 2.3f,
         )
     }
 }

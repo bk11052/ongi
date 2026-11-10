@@ -24,15 +24,22 @@ object Palette {
     val PaperHint = Color(0xFFA89A84)
 }
 
-val Handwriting = FontFamily(Font(R.font.nanum_pen_script))
+val Handwriting = FontFamily(Font(R.font.gaegu_regular))
+
+/** Clean, rounded Korean sans for everything that is not a note. */
+val UiFont = FontFamily(
+    Font(R.font.pretendard_regular, FontWeight.Normal),
+    Font(R.font.pretendard_medium, FontWeight.Medium),
+    Font(R.font.pretendard_semibold, FontWeight.SemiBold),
+)
 
 object Type {
     // UI text is plain and calm; the handwriting font is kept for the notes themselves.
-    val Title = TextStyle(fontSize = 40.sp, fontWeight = FontWeight.SemiBold, color = Palette.Moon)
-    val NoteBody = TextStyle(fontFamily = Handwriting, fontSize = 44.sp, lineHeight = 52.sp, color = Palette.Ink)
-    val Caption = TextStyle(fontSize = 28.sp, color = Palette.Moon)
-    val Label = TextStyle(fontSize = 24.sp, color = Palette.Moon)
-    val Small = TextStyle(fontSize = 22.sp, color = Palette.Dim)
+    val Title = TextStyle(fontFamily = UiFont, fontSize = 40.sp, fontWeight = FontWeight.SemiBold, color = Palette.Moon)
+    val NoteBody = TextStyle(fontFamily = Handwriting, fontSize = 38.sp, lineHeight = 50.sp, color = Palette.Ink)
+    val Caption = TextStyle(fontFamily = UiFont, fontSize = 28.sp, color = Palette.Moon)
+    val Label = TextStyle(fontFamily = UiFont, fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Palette.Moon)
+    val Small = TextStyle(fontFamily = UiFont, fontSize = 22.sp, color = Palette.Dim)
 }
 
 @Composable
