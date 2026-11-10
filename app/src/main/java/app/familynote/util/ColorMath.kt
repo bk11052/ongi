@@ -73,9 +73,11 @@ object ColorMath {
     /**
      * Picks the color that best represents a drawing.
      *
-     * Paper-colored, transparent and near-gray pixels are ignored; the remaining pixels are
-     * grouped into 12 hue buckets weighted by saturation, and the average color of the
-     * heaviest bucket is returned. Returns null when the drawing has no colorful ink.
+     * Paper-colored, transparent and dull pixels are ignored; the remaining pixels are
+     * grouped into 12 hue buckets weighted by chroma squared, and the average color of the
+     * heaviest bucket is returned. Chroma (not HSL saturation) is used so that pale crayon
+     * skin tones and beige walls, which have high HSL saturation but little actual color,
+     * cannot outvote the picture's real main color. Returns null when there is no colorful ink.
      */
     fun pickAccent(pixels: IntArray, paper: Int = PAPER): Int? {
         val buckets = 12
@@ -86,10 +88,12 @@ object ColorMath {
         for (p in pixels) {
             if (alpha(p) < 128) continue
             if (distanceSq(p, paper) < 40 * 40) continue
+            val chroma = (max(red(p), max(green(p), blue(p))) - min(red(p), min(green(p), blue(p)))) / 255f
+            if (chroma < 0.3f) continue
             val hsl = toHsl(p)
-            if (hsl[1] < 0.25f || hsl[2] < 0.12f || hsl[2] > 0.92f) continue
+            if (hsl[2] < 0.12f) continue
             val i = ((hsl[0] / 360f) * buckets).toInt().coerceIn(0, buckets - 1)
-            val w = hsl[1]
+            val w = chroma * chroma
             weight[i] += w
             sumR[i] += red(p) * w
             sumG[i] += green(p) * w

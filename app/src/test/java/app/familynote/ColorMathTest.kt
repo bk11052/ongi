@@ -68,4 +68,17 @@ class ColorMathTest {
         assertEquals(red, ColorMath.lerp(red, blue, 0f))
         assertEquals(blue, ColorMath.lerp(red, blue, 1f))
     }
+
+    @Test
+    fun paleSkinTonesDoNotBeatTheMainColor() {
+        val skin = 0xFFF2C9A0.toInt()   // pale crayon skin / beige wall
+        val pixels = IntArray(1000) { i ->
+            when {
+                i < 500 -> ColorMath.PAPER
+                i < 800 -> skin
+                else -> blue
+            }
+        }
+        assertEquals(blue, ColorMath.pickAccent(pixels))
+    }
 }
