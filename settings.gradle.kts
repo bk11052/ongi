@@ -13,5 +13,5 @@ dependencyResolutionManagement {
         maven { url = uri("https://nexus-playground.pleos.ai/repository/maven-releases/") }
     }
 }
-rootProject.name = "FamilyNote"
+rootProject.name = "Ongi"
 include(":app")
