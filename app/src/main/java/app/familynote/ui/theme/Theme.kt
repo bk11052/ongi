@@ -26,6 +26,9 @@ object Palette {
     val Line = Color(0xFF2C3042)
 }
 
+/** The family's handwriting: notes are set in it. */
+val Handwriting = FontFamily(Font(R.font.gaegu_regular))
+
 /** Clean, rounded Korean sans for everything that is not a note. */
 val UiFont = FontFamily(
     Font(R.font.pretendard_regular, FontWeight.Normal),
@@ -34,9 +37,9 @@ val UiFont = FontFamily(
 )
 
 object Type {
-    // One typeface everywhere, as on Apple and Windows: notes are set in it too.
+    // Plain sans for the interface; handwriting only for what the family wrote.
     val Title = TextStyle(fontFamily = UiFont, fontSize = 40.sp, fontWeight = FontWeight.SemiBold, color = Palette.Moon)
-    val NoteBody = TextStyle(fontFamily = UiFont, fontWeight = FontWeight.Medium, fontSize = 34.sp, lineHeight = 48.sp, color = Palette.Ink)
+    val NoteBody = TextStyle(fontFamily = Handwriting, fontSize = 40.sp, lineHeight = 50.sp, color = Palette.Ink)
     val Caption = TextStyle(fontFamily = UiFont, fontSize = 28.sp, color = Palette.Moon)
     val Label = TextStyle(fontFamily = UiFont, fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Palette.Moon)
     val Small = TextStyle(fontFamily = UiFont, fontSize = 22.sp, color = Palette.Dim)

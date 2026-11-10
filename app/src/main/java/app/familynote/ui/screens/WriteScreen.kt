@@ -32,6 +32,12 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.unit.dp
 import app.familynote.data.Note
 import app.familynote.ui.LetterAddress
+import app.familynote.ui.IconAction
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Stop
 import app.familynote.ui.SoftButton
 import app.familynote.ui.theme.Palette
 import app.familynote.ui.theme.Type
@@ -110,7 +116,7 @@ fun WriteScreen(
         Column(Modifier.width(360.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             LetterAddress(from = from, to = to, onFrom = { from = it }, onTo = { to = it })
             Text("${text.length} / $MAX_LEN", style = Type.Small)
-            SoftButton(if (listening) "받아쓰기 중지" else "받아쓰기") {
+            IconAction(if (listening) Icons.Outlined.Stop else Icons.Outlined.Mic, if (listening) "받아쓰기 중지" else "받아쓰기", primary = listening) {
                 when {
                     listening -> {
                         onStopListening()
@@ -125,8 +131,8 @@ fun WriteScreen(
             hint?.let { Text(it, style = Type.Small) }
             Spacer(Modifier.weight(1f))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SoftButton("취소", Modifier.weight(1f), onClick = onCancel)
-                SoftButton("보내기", Modifier.weight(1f), primary = true, enabled = text.isNotBlank() && !saving) {
+                IconAction(Icons.Outlined.Close, "취소", Modifier.weight(1f), wide = true, onClick = onCancel)
+                IconAction(Icons.AutoMirrored.Outlined.Send, "보내기", Modifier.weight(1f), primary = true, wide = true, enabled = text.isNotBlank() && !saving) {
                     saving = true
                     onStopListening()
                     onSave(text, from, to) { ok -> if (!ok) saving = false }

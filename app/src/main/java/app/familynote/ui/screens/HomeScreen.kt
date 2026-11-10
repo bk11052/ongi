@@ -23,9 +23,9 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Create
+import androidx.compose.material.icons.outlined.Brush
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.Icon
@@ -49,6 +49,7 @@ import app.familynote.ui.FamilyMembers
 import app.familynote.ui.NewDot
 import app.familynote.ui.PaperNote
 import app.familynote.ui.SoftButton
+import app.familynote.ui.IconAction
 import app.familynote.ui.dateLabel
 import app.familynote.ui.NOTE_RATIO
 import app.familynote.ui.rememberNoteBitmap
@@ -94,9 +95,9 @@ fun HomeScreen(
                 // Who is driving, shown like a profile: tap to switch.
                 SoftButton(driver, icon = Icons.Outlined.Person, onClick = { choosingDriver = true })
                 Spacer(Modifier.width(10.dp))
-                SoftButton(if (hasDraft) "이어 그리기" else "그리기", icon = Icons.Outlined.Create, onClick = onDraw)
-                SoftButton("쓰기", icon = Icons.Outlined.Email, onClick = onWrite)
-                SoftButton("슬라이드쇼", icon = Icons.Outlined.PlayArrow, primary = true, enabled = notes.isNotEmpty(), onClick = { onGallery(null) })
+                IconAction(Icons.Outlined.Brush, if (hasDraft) "이어 그리기" else "그리기", onClick = onDraw)
+                IconAction(Icons.Outlined.EditNote, "쓰기", onClick = onWrite)
+                IconAction(Icons.Outlined.PlayArrow, "슬라이드쇼", primary = true, enabled = notes.isNotEmpty(), onClick = { onGallery(null) })
             }
         }
         Spacer(Modifier.height(28.dp))

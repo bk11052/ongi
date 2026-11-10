@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -243,4 +246,42 @@ fun NewDot(size: Dp = 14.dp) {
             .background(Palette.Amber)
             .border(2.dp, Palette.Night, CircleShape),
     )
+}
+
+/**
+ * A pictogram button: icon only (the label is read out by accessibility services).
+ * Round by default; [wide] makes a pill that fills its row slot, for the main actions.
+ */
+@Composable
+fun IconAction(
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+    enabled: Boolean = true,
+    wide: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val bg = when {
+        !enabled -> Palette.NightRaised.copy(alpha = 0.5f)
+        primary -> Palette.Amber
+        else -> Palette.NightRaised
+    }
+    val fg = when {
+        !enabled -> Palette.Dim.copy(alpha = 0.5f)
+        primary -> Palette.Night
+        else -> Palette.Moon
+    }
+    val shape = if (wide) RoundedCornerShape(36.dp) else CircleShape
+    Box(
+        modifier
+            .then(if (wide) Modifier.height(72.dp) else Modifier.size(72.dp))
+            .clip(shape)
+            .background(bg)
+            .clickable(enabled = enabled, onClickLabel = label, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(36.dp))
+    }
 }

@@ -39,6 +39,12 @@ import app.familynote.ui.PaperNote
 import app.familynote.ui.SoftButton
 import app.familynote.ui.dateLabel
 import app.familynote.ui.NOTE_RATIO
+import app.familynote.ui.IconAction
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Reply
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.SelfImprovement
 import app.familynote.ui.rememberNoteBitmap
 import app.familynote.ui.theme.Palette
 import app.familynote.util.Korean
@@ -152,10 +158,10 @@ fun GalleryScreen(
             modifier = Modifier.align(Alignment.TopEnd).padding(28.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SoftButton("읽어 주기", onClick = { onRead(note) })
-                SoftButton("답장", onClick = { onReply(note) })
-                SoftButton("쉼표 모드", primary = resting, onClick = onToggleRest)
-                SoftButton("닫기", onClick = onClose)
+                IconAction(Icons.AutoMirrored.Outlined.VolumeUp, "읽어 주기", onClick = { onRead(note) })
+                IconAction(Icons.AutoMirrored.Outlined.Reply, "답장", onClick = { onReply(note) })
+                IconAction(Icons.Outlined.SelfImprovement, "쉼표 모드", primary = resting, onClick = onToggleRest)
+                IconAction(Icons.Outlined.Close, "닫기", onClick = onClose)
             }
         }
         AnimatedVisibility(

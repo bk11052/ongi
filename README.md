@@ -73,4 +73,4 @@ app/src/main/java/app/familynote/
 ```
 
 ## 라이선스
-- 글꼴: Pretendard (SIL Open Font License 1.1, `THIRD_PARTY_FONT_LICENSE.txt`)
+- 글꼴: 쪽지 손글씨 Gaegu, 화면 글꼴 Pretendard (모두 SIL Open Font License 1.1, `THIRD_PARTY_FONT_LICENSE.txt`)

@@ -41,6 +41,14 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.familynote.ui.LetterAddress
+import app.familynote.ui.IconAction
+import app.familynote.ui.PenSwatch
+import app.familynote.ui.EraserIcon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.automirrored.outlined.Undo
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteSweep
 import app.familynote.ui.NOTE_RATIO
 import androidx.compose.foundation.layout.aspectRatio
 import app.familynote.ui.ConfirmDialog
@@ -192,7 +200,7 @@ fun DrawScreen(
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 for (p in Pen.entries) {
-                    SoftButton(p.label, Modifier.weight(1f), primary = !eraser && p == pen, compact = true, onClick = { pen = p; eraser = false })
+                    PenSwatch(p, color, selected = !eraser && p == pen, modifier = Modifier.weight(1f)) { pen = p; eraser = false }
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -227,14 +235,21 @@ fun DrawScreen(
                         Box(Modifier.size((10 + i * 10).dp).clip(CircleShape).background(Palette.Moon))
                     }
                 }
-                SoftButton("지우개", Modifier.width(132.dp), primary = eraser, onClick = { eraser = !eraser })
+                Box(
+                    Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(if (eraser) Palette.Amber else Palette.NightRaised)
+                        .clickable(onClickLabel = "지우개") { eraser = !eraser },
+                    contentAlignment = Alignment.Center,
+                ) { EraserIcon(tint = if (eraser) Palette.Night else Palette.Moon) }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SoftButton("실행 취소", enabled = strokes.isNotEmpty() && current == null, onClick = {
+                IconAction(Icons.AutoMirrored.Outlined.Undo, "실행 취소", enabled = strokes.isNotEmpty() && current == null, onClick = {
                     strokes.removeLastOrNull()
                     recommit()
                 })
-                SoftButton("전체 지우기", enabled = strokes.isNotEmpty() && current == null, onClick = {
+                IconAction(Icons.Outlined.DeleteSweep, "전체 지우기", enabled = strokes.isNotEmpty() && current == null, onClick = {
                     strokes.clear()
                     recommit()
                 })
@@ -242,13 +257,15 @@ fun DrawScreen(
             LetterAddress(from = from, to = to, onFrom = { from = it }, onTo = { to = it })
             Spacer(Modifier.weight(1f))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SoftButton("취소", Modifier.weight(1f)) {
+                IconAction(Icons.Outlined.Close, "취소", Modifier.weight(1f), wide = true) {
                     if (strokes.isEmpty()) onCancel() else confirmDiscard = true
                 }
-                SoftButton(
+                IconAction(
+                    Icons.AutoMirrored.Outlined.Send,
                     "보내기",
                     Modifier.weight(1f),
                     primary = true,
+                    wide = true,
                     enabled = strokes.isNotEmpty() && !saving && canvasSize.width > 0,
                 ) {
                     saving = true
